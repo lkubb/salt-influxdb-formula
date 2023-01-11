@@ -1,0 +1,49 @@
+# -*- coding: utf-8 -*-
+# vim: ft=yaml
+#
+# Set default values.
+---
+values:
+  lookup:
+    rootgroup: root
+    pkg:
+      name: influxdb2
+    enablerepo:
+      stable: true
+    config: '/etc/influxdb/config.toml'
+    service:
+      name: influxdb
+    group: influxdb
+    pkg_cli: influxdb2-cli
+    user: influxdb
+  cert:
+    ca_server: null
+    cn: null
+    intermediate: []
+    signing_cert: null
+    signing_policy: null
+    signing_private_key: null
+  config:
+    http-bind-address: 127.0.0.1:8086
+  init:
+    bucket: default
+    host: null
+    org: default
+    user_password: null
+    user_password_pillar: null
+    username: admin
+  remove_all_data_for_sure: false
+  vault:
+    connection_name: influxdb2
+    database_mount: database
+    influx_host: null
+    influx_port: null
+    organization: default
+    token: null
+    token_pillar: null
+  vault_roles: []
+  version: null
+  # Just here for testing
+  added_in_defaults: defaults_value
+  winner: defaults
+...

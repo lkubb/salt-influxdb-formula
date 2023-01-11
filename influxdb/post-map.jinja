@@ -1,0 +1,8 @@
+{#- Make certificate paths absolute, if specified relative -#}
+
+{%- set config_dir = salt["file.dirname"](mapdata.lookup.config) -%}
+{%- for conf in ["tls-cert", "tls-key"] -%}
+  {%- if mapdata.config.get(conf) and not mapdata.config[conf].startswith("/") -%}
+    {%- do mapdata.config.update({conf: config_dir | path_join(mapdata.config[conf])}) -%}
+  {%- endif -%}
+{%- endfor -%}

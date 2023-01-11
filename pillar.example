@@ -1,0 +1,67 @@
+# -*- coding: utf-8 -*-
+# vim: ft=yaml
+# yamllint disable rule:comments-indentation
+---
+influxdb:
+
+  cert:
+    ca_server: null
+    cn: null
+    intermediate: []
+    signing_cert: null
+    signing_policy: null
+    signing_private_key: null
+  config:
+    http-bind-address: 127.0.0.1:8086
+  init:
+    bucket: default
+    host: null
+    org: default
+    user_password: null
+    user_password_pillar: null
+    username: admin
+  remove_all_data_for_sure: false
+  vault:
+    connection_name: influxdb2
+    database_mount: database
+    influx_host: null
+    influx_port: null
+    organization: default
+    token: null
+    token_pillar: null
+  vault_roles: []
+  version: null
+
+  lookup:
+    group: influxdb
+    pkg_cli: influxdb2-cli
+    user: influxdb
+
+  tofs:
+      # The files_switch key serves as a selector for alternative
+      # directories under the formula files directory. See TOFS pattern
+      # doc for more info.
+      # Note: Any value not evaluated by `config.get` will be used literally.
+      # This can be used to set custom paths, as many levels deep as required.
+    files_switch:
+      - any/path/can/be/used/here
+      - id
+      - roles
+      - osfinger
+      - os
+      - os_family
+
+      # All aspects of path/file resolution are customisable using the options below.
+      # This is unnecessary in most cases; there are sensible defaults.
+      # Default path: salt://< path_prefix >/< dirs.files >/< dirs.default >
+      # I.e.: salt://influxdb/files/default
+      # path_prefix: template_alt
+      # dirs:
+      #   files: files_alt
+      #   default: default_alt
+      # The entries under `source_files` are prepended to the default source files
+      # given for the state
+    source_files:
+      influxdb-config-file-file-managed:
+        - 'example_alt.tmpl'
+        - 'example_alt.tmpl.jinja'
