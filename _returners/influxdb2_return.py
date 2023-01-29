@@ -400,7 +400,6 @@ def _client(options):
         log.exception(err)
 
 
-
 def _re_match(patterns, data):
     """
     Given a list of patterns, check if data matches any.
