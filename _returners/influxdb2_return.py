@@ -85,7 +85,7 @@ event tag.
         measurement: returns
         fields:
           jid: '{jid}'
-          return: '{return}'
+          return: '{ret_str}'
           retcode: '{retcode}'
         tags:
           fun: '{fun}'
@@ -118,8 +118,8 @@ traverse the dictionaries and only have access to the top keys.
 Depending on the type, there are miscellaneous template vars available.
 
 returns
-    ``full_ret`` (full return dict, excluding ``result``) and
-    ``module`` (the module part of ``fun``)
+    ``full_ret`` (full return dict, excluding ``result``), ``ret_str``
+    (return cast to str) and ``module`` (the module part of ``fun``)
 
 returns for state functions
     In addition, ``states_succeeded``, ``states_failed`` and ``states_total``,
@@ -172,7 +172,7 @@ DEFAULT_FUNCTION_POINT = immutabletypes.freeze(
         "measurement": "returns",
         "fields": {
             "jid": "{jid}",
-            "return": "{return}",
+            "return": "{ret_str}",
             "retcode": "{retcode}",
         },
         "tags": {
@@ -294,6 +294,7 @@ def returner(ret):
         # typical `nested:value` notation can be used.
         "full_ret": lambda x: json.dumps({k: v for k, v in x.items() if k != "return"}),
         "module": lambda x: x["fun"].split(".")[0],
+        "ret_str": lambda x: str(x["return"]),
     }
 
     prj = Projector(mappings, ret)
@@ -333,7 +334,7 @@ def returner(ret):
     try:
         write_api.write(options["bucket"], record=record)
     except InfluxDBError as err:
-        log.exception(f"Failed to store return: {err}")
+        log.error(f"Failed to store return: {err}")
 
 
 def event_return(events):
@@ -389,15 +390,38 @@ def event_return(events):
 
 def _client(options):
     """
-    Return an influxdb client object
+    Return a client for a specific url/org/token combination
     """
-    client_kwargs = {k: options.get(k) for k in ("url", "org", "token")}
+    # TODO: Maybe just instantiate a new client per request instead of
+    # this magic, at least for the returner?
+    ckey = "influxdb2_conn"
+    global __context__
+    __context__ = __context__ or {}
 
-    try:
-        with influxdb_client.InfluxDBClient(**client_kwargs) as client:
-            yield client
-    except InfluxDBError as err:
-        log.exception(err)
+    def conn(url, org, token):
+        try:
+            with influxdb_client.InfluxDBClient(url=client_kwargs[0], org=client_kwargs[1], token=client_kwargs[2]) as client:
+                while True:
+                    yield client
+        except InfluxDBError as err:
+            log.error(err)
+            raise
+        finally:
+            try:
+                __context__[ckey].pop(client_kwargs)
+            except (AttributeError, TypeError):
+                pass
+
+    client_kwargs = tuple(options.get(k) for k in ("url", "org", "token"))
+
+    if ckey not in __context__:
+        __context__[ckey] = {}
+
+    if client_kwargs not in __context__[ckey]:
+        # ensure the generator is not garbage-collected too early
+        __context__[ckey][client_kwargs] = conn(*client_kwargs)
+
+    return next(__context__[ckey][client_kwargs])
 
 
 def _re_match(patterns, data):
@@ -411,7 +435,7 @@ def _re_match(patterns, data):
         try:
             match = bool(re.match(ptrn, data))
         except Exception as err:
-            log.exception(f"Invalid regular expression: {err}")
+            log.error(f"Invalid regular expression: {err}")
             match = False
         matches.append(match)
 
@@ -493,43 +517,43 @@ class StateSum:
 
     def __init__(self, data):
         self.data = data
-        self.succeeded = None
-        self.failed = None
-        self.total = None
+        self._succeeded = None
+        self._failed = None
+        self._total = None
 
     def succeeded(self, _):
         """
         Return the sum of succeeded state runs,
         where None results from tests count as succeeded
         """
-        if self.succeeded is None:
+        if self._succeeded is None:
             self._sum()
-        return self.succeeded
+        return self._succeeded
 
     def failed(self, _):
         """
         Return the sum of failed state runs
         """
-        if self.failed is None:
+        if self._failed is None:
             self._sum()
-        return self.failed
+        return self._failed
 
     def total(self, _):
         """
         Return the sum of state runs regardless of result
         """
-        if self.total is None:
+        if self._total is None:
             self._sum()
-        return self.total
+        return self._total
 
     def _sum(self):
-        failed = succeeded = total = 0
+        failed_ = succeeded_ = total_ = 0
         for single in self.data["return"].values():
-            total += 1
+            total_ += 1
             if single["result"] is False:
-                failed += 1
+                failed_ += 1
             else:
-                succeeded += 1
-        self.failed = failed
-        self.succeeded = succeeded
-        self.total = total
+                succeeded_ += 1
+        self._failed = failed_
+        self._succeeded = succeeded_
+        self._total = total_
