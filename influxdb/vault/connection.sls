@@ -19,8 +19,8 @@ Initialize Vault database configuration:
     - allowed_roles: {{ influxdb.vault_roles | map(attribute="name") | list | json }}
     # requires custom plugin
     - plugin: influxdb2
-    - host: {{ influxdb.vault.influx_host or ((grains.fqdns or grains.ipv4) | first) }}
-    - port: {{ influxdb.vault.influx_port or influxdb.config["http-bind-address"].split(":") | last }}
+    - host: {{ influxdb._host}}
+    - port: {{ influxdb._port }}
     - password: {{ influxdb.vault.token or salt["pillar.get"](influxdb.vault.token_pillar, "null") }}
     - organization: {{ influxdb.vault.organization }}
     - tls: {{ "tls-cert" in influxdb.config }}

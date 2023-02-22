@@ -15,6 +15,8 @@ influxdb:
     group: influxdb
     pkg_cli: influxdb2-cli
     user: influxdb
+  buckets: []
+  buckets_absent: []
   cert:
     ca_server: null
     cn: null
@@ -32,11 +34,14 @@ influxdb:
     user_password_pillar: null
     username: admin
   remove_all_data_for_sure: false
+  tasks: []
+  tasks_absent: []
   vault:
     connection_name: influxdb2
     database_mount: database
     influx_host: null
     influx_port: null
+    manage_role: manage
     organization: default
     token: null
     token_pillar: null

@@ -8,3 +8,5 @@ include:
   - .service
   - .auth
   - .vault
+  - .buckets
+  - .tasks

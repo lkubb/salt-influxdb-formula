@@ -31,6 +31,8 @@
         "pkg_cli": "influxdb2-cli"
       },
       "_settings": {
+        "buckets": [],
+        "buckets_absent": [],
         "cert": {
           "ca_server": null,
           "cn": null,
@@ -50,11 +52,14 @@
           "user_password_pillar": null,
           "username": "admin"
         },
+        "tasks": [],
+        "tasks_absent": [],
         "vault": {
           "connection_name": "influxdb2",
           "database_mount": "database",
           "influx_host": null,
           "influx_port": null,
+          "manage_role": "manage",
           "organization": "default",
           "token": null,
           "token_pillar": null
