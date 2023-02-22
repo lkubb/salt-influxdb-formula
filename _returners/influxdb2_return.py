@@ -41,7 +41,7 @@ You can filter returns/events based on a list of regular expressions.
 Note that for events, there are global settings ``event_return_whitelist``/``event_return_blacklist``.
 The event filter functionality exists in case you use multiple event returners
 and are only interested in a subset for InfluxDB specifically.
-This clutch can be removed once issue #54123 is closed.
+This crutch can be removed once issue #54123 is closed.
 
 .. code-block:: yaml
 
@@ -286,21 +286,28 @@ def returner(ret):
 
     client = _client(options)
 
-    # Just dumping the data as JSON causes issues with bytes:
-    # https://github.com/saltstack/salt/issues/59012
-    # @FIXMEMAYBE
     mappings = {
         # These are special-purpose mappings, otherwise
         # typical `nested:value` notation can be used.
-        "full_ret": lambda x: json.dumps({k: v for k, v in x.items() if k != "return"}),
         "module": lambda x: x["fun"].split(".")[0],
         "ret_str": lambda x: str(x["return"]),
     }
 
+    # Just dumping the data as JSON causes issues with bytes:
+    # https://github.com/saltstack/salt/issues/59012
+    # @FIXMEMAYBE
+    try:
+        mappings["full_ret"] = lambda x: json.dumps({k: v for k, v in x.items() if k != "return"})
+    except TypeError:
+        mappings["full_ret"] = ""
+
     prj = Projector(mappings, ret)
     fmt = options["function_point_fmt_fun"].get(ret["fun"])
 
-    if ret["fun"] in STATE_FUNCTIONS:
+    # State returns can render more specific insights.
+    # ret["return"] can be a list in case rendering the highstate failed,
+    # in that case skip treating it as a state run
+    if ret["fun"] in STATE_FUNCTIONS and isinstance(ret["return"], dict):
         ssum = StateSum(ret)
         mappings["states_succeeded"] = ssum.succeeded
         mappings["states_failed"] = ssum.failed
@@ -341,51 +348,54 @@ def event_return(events):
     """
     Write event to an InfluxDB bucket
     """
-    options = _get_options()
-    client = _client(options)
-    mappings = {
-        "master": __opts__["id"],
-    }
+    try:
+        options = _get_options()
+        client = _client(options)
+        mappings = {
+            "master": __opts__["id"],
+        }
 
-    def error_callback(conf, _, exception):
-        log.error(f"Could not write batch {conf}: {exception}")
+        def error_callback(conf, _, exception):
+            log.error(f"Could not write batch {conf}: {exception}")
 
-    with client.write_api(error_callback=error_callback) as _write:
-        for event in events:
-            # Doing the filtering after connecting might be suboptimal
-            # if most events are filtered @FIXME?
-            if (
-                _re_match(options["events_blocklist"], event["tag"])
-                or options["events_allowlist"]
-                and not _re_match(options["events_allowlist"], event["tag"])
-            ):
-                log.info(
-                    f"Skipping InfluxDB2 event return for event {event['tag']} because it is filtered"
-                )
-                continue
-            prj = Projector(mappings, event)
-            fmt = options["event_point_fmt_tag"].get(
-                event["tag"], options["event_point_fmt"]
-            )
-            record = {
-                "measurement": fmt.get(
-                    "measurement", DEFAULT_EVENT_POINT["measurement"]
-                ),
-                # tag values must be strings
-                "tags": {
-                    k: str(v)
-                    for k, v in _project(
-                        prj,
-                        fmt.get("tags", DEFAULT_EVENT_POINT["tags"]),
+        with client.write_api(error_callback=error_callback) as _write_client:
+            for event in events:
+                # Doing the filtering after connecting might be suboptimal
+                # if most events are filtered @FIXME?
+                if (
+                    _re_match(options["events_blocklist"], event["tag"])
+                    or options["events_allowlist"]
+                    and not _re_match(options["events_allowlist"], event["tag"])
+                ):
+                    log.info(
+                        f"Skipping InfluxDB2 event return for event {event['tag']} because it is filtered"
                     )
-                },
-                "fields": _project(
-                    prj,
-                    fmt.get("fields", DEFAULT_EVENT_POINT["fields"]),
-                ),
-                "time": datetime.utcnow(),
-            }
-            _write(options["bucket"], record=record)
+                    continue
+                prj = Projector(mappings, event)
+                fmt = options["event_point_fmt_tag"].get(
+                    event["tag"], options["event_point_fmt"]
+                )
+                record = {
+                    "measurement": fmt.get(
+                        "measurement", DEFAULT_EVENT_POINT["measurement"]
+                    ),
+                    # tag values must be strings
+                    "tags": {
+                        k: str(v)
+                        for k, v in _project(
+                            prj,
+                            fmt.get("tags", DEFAULT_EVENT_POINT["tags"]),
+                        ).items()
+                    },
+                    "fields": _project(
+                        prj,
+                        fmt.get("fields", DEFAULT_EVENT_POINT["fields"]),
+                    ),
+                    "time": datetime.utcnow(),
+                }
+                _write_client.write(options["bucket"], record=record)
+    except Exception as err:
+        log.exception(err)
 
 
 def _client(options):
