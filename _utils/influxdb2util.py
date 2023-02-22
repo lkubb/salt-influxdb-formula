@@ -25,7 +25,7 @@ class Task:
         if self.offset is not None:
             task_opts["offset"] = self.offset
         options = 'option task = {{{}}}'.format(", ".join(f"{k}: {v}" if k not in ("name", "cron") else f'{k}: "{v}"' for k, v in task_opts.items()))
-        return self.query + "\n\n" + options
+        return options + "\n\n" + self.query
 
     @classmethod
     def from_flux(cls, flux):
