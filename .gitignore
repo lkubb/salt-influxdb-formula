@@ -1,7 +1,3 @@
-# Until modules are finished @TODO
-_modules/
-_states/
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
