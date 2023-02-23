@@ -41,7 +41,7 @@ class Task:
         except IndexError:
             raise CommandExecutionError("Could not parse task options")
         query = "\n".join(line for line in flux.splitlines() if not line.startswith("option task = {")).strip()
-        parsed = dict(re.findall(r'(\w+): "?(\w+)"?', options))
+        parsed = dict(re.findall(r'(\w+): "?([^,"]+)"?', options))
         return cls(query=query, **parsed)
 
 
