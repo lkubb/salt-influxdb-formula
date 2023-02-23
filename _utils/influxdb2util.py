@@ -11,7 +11,9 @@ class Task:
 
     def __init__(self, name, query, every=None, cron=None, offset=None):
         self.name = name
-        self.query = query
+        if isinstance(query, str):
+            query = FluxQuery.from_string(query)
+        self.query = str(query)
         self.every = every
         self.cron = cron
         self.offset = offset
@@ -24,8 +26,13 @@ class Task:
             task_opts["cron"] = self.cron
         if self.offset is not None:
             task_opts["offset"] = self.offset
+        query = FluxQuery.from_string(self.query)
+        # imports need to precede the option task statement
+        imports = query.imports
+        if imports:
+            imports += "\n\n"
         options = 'option task = {{{}}}'.format(", ".join(f"{k}: {v}" if k not in ("name", "cron") else f'{k}: "{v}"' for k, v in task_opts.items()))
-        return options + "\n\n" + self.query
+        return imports + options + "\n\n" + query.query + "\n"
 
     @classmethod
     def from_flux(cls, flux):
@@ -33,9 +40,27 @@ class Task:
             options = re.findall(r"option task = {(.*?)}", flux)[0]
         except IndexError:
             raise CommandExecutionError("Could not parse task options")
-        query = "\n".join(re.split(r"option task = {.*?}", flux, maxsplit=1)).strip()
+        query = "\n".join(line for line in flux.splitlines() if not line.startswith("option task = {")).strip()
         parsed = dict(re.findall(r'(\w+): "?(\w+)"?', options))
         return cls(query=query, **parsed)
+
+
+class FluxQuery:
+    def __init__(self, query, imports=""):
+        self.query = query.strip()
+        self.imports = imports.strip()
+
+    def __str__(self):
+        imports = self.imports
+        if imports:
+            imports += "\n\n"
+        return imports + self.query + "\n"
+
+    @classmethod
+    def from_string(cls, query):
+        imports = re.findall(r'^import ".*"$', query, flags=re.MULTILINE)
+        query_without_imports = "\n".join(line for line in query.splitlines() if line not in imports).strip()
+        return cls(query_without_imports, imports="\n".join(imports))
 
 
 def timestring_map(val):

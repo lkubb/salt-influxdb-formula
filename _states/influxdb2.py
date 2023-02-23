@@ -21,7 +21,7 @@ influxdb_org
     Override the configured default organization. If not configured, defaults to ``salt``.
 """
 
-from influxdb2util import timestring_map, Task
+from influxdb2util import timestring_map, Task, FluxQuery
 from salt.exceptions import CommandExecutionError, SaltInvocationError
 
 
@@ -166,8 +166,9 @@ def task_present(name, query, every=None, cron=None, offset=None, description=""
         else:
             verb = "update"
             current_query = Task.from_flux(existing["flux"]).query
-            if current_query.strip() != query.strip():
-                changes["query"] = {"old": current_query, "new": query}
+            new_query = str(FluxQuery.from_string(query))
+            if current_query != new_query:
+                changes["query"] = {"old": current_query, "new": new_query}
             for param, var in (("every", every), ("cron", cron), ("offset", offset), ("description", description)):
                 if existing.get(param) != var and (param != "description" or (var or existing.get(param) is not None)):
                     changes[param] = {"old": existing.get(param), "new": var}
