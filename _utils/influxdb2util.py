@@ -1,6 +1,6 @@
 import re
 
-from salt.exceptions import SaltInvocationError, CommandExecutionError
+from salt.exceptions import CommandExecutionError, SaltInvocationError
 
 
 class Task:
@@ -31,7 +31,12 @@ class Task:
         imports = query.imports
         if imports:
             imports += "\n\n"
-        options = 'option task = {{{}}}'.format(", ".join(f"{k}: {v}" if k not in ("name", "cron") else f'{k}: "{v}"' for k, v in task_opts.items()))
+        options = "option task = {{{}}}".format(
+            ", ".join(
+                f"{k}: {v}" if k not in ("name", "cron") else f'{k}: "{v}"'
+                for k, v in task_opts.items()
+            )
+        )
         return imports + options + "\n\n" + query.query + "\n"
 
     @classmethod
@@ -40,7 +45,9 @@ class Task:
             options = re.findall(r"option task = {(.*?)}", flux)[0]
         except IndexError:
             raise CommandExecutionError("Could not parse task options")
-        query = "\n".join(line for line in flux.splitlines() if not line.startswith("option task = {")).strip()
+        query = "\n".join(
+            line for line in flux.splitlines() if not line.startswith("option task = {")
+        ).strip()
         parsed = dict(re.findall(r'(\w+): "?([^,"]+)"?', options))
         return cls(query=query, **parsed)
 
@@ -59,7 +66,9 @@ class FluxQuery:
     @classmethod
     def from_string(cls, query):
         imports = re.findall(r'^import ".*"$', query, flags=re.MULTILINE)
-        query_without_imports = "\n".join(line for line in query.splitlines() if line not in imports).strip()
+        query_without_imports = "\n".join(
+            line for line in query.splitlines() if line not in imports
+        ).strip()
         return cls(query_without_imports, imports="\n".join(imports))
 
 

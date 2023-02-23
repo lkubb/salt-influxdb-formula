@@ -21,9 +21,8 @@ influxdb_org
     Override the configured default organization. If not configured, defaults to ``salt``.
 """
 
-from influxdb2util import timestring_map, Task, FluxQuery
+from influxdb2util import FluxQuery, Task, timestring_map
 from salt.exceptions import CommandExecutionError, SaltInvocationError
-
 
 __virtualname__ = "influxdb2"
 
@@ -59,7 +58,12 @@ def bucket_present(name, expire="30d", description="", org=None, **kwargs):
     org
         Override the default organization set in the configuration.
     """
-    ret = {"name": name, "comment": "The bucket is already in the correct state", "changes": {}, "result": True}
+    ret = {
+        "name": name,
+        "comment": "The bucket is already in the correct state",
+        "changes": {},
+        "result": True,
+    }
 
     try:
         expire = timestring_map(expire)
@@ -70,10 +74,22 @@ def bucket_present(name, expire="30d", description="", org=None, **kwargs):
             changes["created"] = name
         else:
             verb = "update"
-            if existing["description"] != description and (description or existing["description"] is not None):
-                changes["description"] = {"old": existing["description"], "new": description}
-            if len(existing["retention_rules"]) != 1 or existing["retention_rules"][0]["type"] != "expire" or existing["retention_rules"][0]["every_seconds"] != expire:
-                changes["retention_rules"] = {"old": existing["retention_rules"], "new": {"type": "expire", "every_seconds": expire}}
+            if existing["description"] != description and (
+                description or existing["description"] is not None
+            ):
+                changes["description"] = {
+                    "old": existing["description"],
+                    "new": description,
+                }
+            if (
+                len(existing["retention_rules"]) != 1
+                or existing["retention_rules"][0]["type"] != "expire"
+                or existing["retention_rules"][0]["every_seconds"] != expire
+            ):
+                changes["retention_rules"] = {
+                    "old": existing["retention_rules"],
+                    "new": {"type": "expire", "every_seconds": expire},
+                }
         if not changes:
             return ret
         ret["changes"] = changes
@@ -83,7 +99,9 @@ def bucket_present(name, expire="30d", description="", org=None, **kwargs):
             ret["comment"] = f"Would have {verb}d the bucket"
             return ret
 
-        __salt__[f"influxdb2.{verb}_bucket"](name, expire=expire, description=description, org=org, **kwargs)
+        __salt__[f"influxdb2.{verb}_bucket"](
+            name, expire=expire, description=description, org=org, **kwargs
+        )
         ret["comment"] = f"Successfully {verb}d the bucket"
 
     except (CommandExecutionError, SaltInvocationError) as err:
@@ -103,7 +121,12 @@ def bucket_absent(name, org=None, **kwargs):
     org
         Override the default organization set in the configuration.
     """
-    ret = {"name": name, "comment": "The bucket is already absent", "changes": {}, "result": True}
+    ret = {
+        "name": name,
+        "comment": "The bucket is already absent",
+        "changes": {},
+        "result": True,
+    }
 
     try:
         existing = __salt__["influxdb2.fetch_bucket"](name, org=org, **kwargs)
@@ -127,7 +150,17 @@ def bucket_absent(name, org=None, **kwargs):
     return ret
 
 
-def task_present(name, query, every=None, cron=None, offset=None, description="", active=True, org=None, **kwargs):
+def task_present(
+    name,
+    query,
+    every=None,
+    cron=None,
+    offset=None,
+    description="",
+    active=True,
+    org=None,
+    **kwargs,
+):
     """
     Ensure an InfluxDB v2 task is present.
 
@@ -155,7 +188,12 @@ def task_present(name, query, every=None, cron=None, offset=None, description=""
     org
         Override the default organization set in the configuration.
     """
-    ret = {"name": name, "comment": "The task is already in the correct state", "changes": {}, "result": True}
+    ret = {
+        "name": name,
+        "comment": "The task is already in the correct state",
+        "changes": {},
+        "result": True,
+    }
 
     try:
         existing = __salt__["influxdb2.fetch_task"](name, org=org, **kwargs)
@@ -169,8 +207,15 @@ def task_present(name, query, every=None, cron=None, offset=None, description=""
             new_query = str(FluxQuery.from_string(query))
             if current_query != new_query:
                 changes["query"] = {"old": current_query, "new": new_query}
-            for param, var in (("every", every), ("cron", cron), ("offset", offset), ("description", description)):
-                if existing.get(param) != var and (param != "description" or (var or existing.get(param) is not None)):
+            for param, var in (
+                ("every", every),
+                ("cron", cron),
+                ("offset", offset),
+                ("description", description),
+            ):
+                if existing.get(param) != var and (
+                    param != "description" or (var or existing.get(param) is not None)
+                ):
                     changes[param] = {"old": existing.get(param), "new": var}
                 if (existing["status"] == "active") is not active:
                     changes["active"] = active
@@ -183,7 +228,17 @@ def task_present(name, query, every=None, cron=None, offset=None, description=""
             ret["comment"] = f"Would have {verb}d the task"
             return ret
 
-        __salt__[f"influxdb2.{verb}_task"](name, query=query, every=every, cron=cron, offset=offset, description=description, active=active, org=org, **kwargs)
+        __salt__[f"influxdb2.{verb}_task"](
+            name,
+            query=query,
+            every=every,
+            cron=cron,
+            offset=offset,
+            description=description,
+            active=active,
+            org=org,
+            **kwargs,
+        )
         ret["comment"] = f"Successfully {verb}d the task"
 
     except (CommandExecutionError, SaltInvocationError) as err:
@@ -203,7 +258,12 @@ def task_absent(name, org=None, **kwargs):
     org
         Override the default organization set in the configuration.
     """
-    ret = {"name": name, "comment": "The task is already absent", "changes": {}, "result": True}
+    ret = {
+        "name": name,
+        "comment": "The task is already absent",
+        "changes": {},
+        "result": True,
+    }
 
     try:
         existing = __salt__["influxdb2.fetch_task"](name, org=org, **kwargs)

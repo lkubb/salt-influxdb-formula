@@ -33,8 +33,8 @@ specifies miscellaneous arguments that should be passed to
 import logging
 from functools import wraps
 
+from influxdb2util import Task, timestring_map
 from salt.exceptions import CommandExecutionError, SaltInvocationError
-from influxdb2util import timestring_map, Task
 
 try:
     import influxdb_client
@@ -385,7 +385,17 @@ def _get_task(_client, name, user=None, org=None):
 
 
 @_with_client
-def create_task(name, query, every=None, cron=None, offset=None, description=None, active=True, org=None, _client=None):
+def create_task(
+    name,
+    query,
+    every=None,
+    cron=None,
+    offset=None,
+    description=None,
+    active=True,
+    org=None,
+    _client=None,
+):
     """
     Create a task.
 
@@ -425,14 +435,16 @@ def create_task(name, query, every=None, cron=None, offset=None, description=Non
             f"Task {name} already exists in {org or 'default org'}"
         )
     flux = Task(name=name, query=query, every=every, cron=cron, offset=offset).to_flux()
-    status = influxdb_client.TaskStatusType.ACTIVE if active else influxdb_client.TaskStatusType.INACTIVE
-    req = influxdb_client.TaskCreateRequest(org=org or _client.org, flux=flux, description=description, status=status)
-
-    return (
-        _client.tasks_api()
-        .create_task(task_create_request=req)
-        .to_dict()
+    status = (
+        influxdb_client.TaskStatusType.ACTIVE
+        if active
+        else influxdb_client.TaskStatusType.INACTIVE
     )
+    req = influxdb_client.TaskCreateRequest(
+        org=org or _client.org, flux=flux, description=description, status=status
+    )
+
+    return _client.tasks_api().create_task(task_create_request=req).to_dict()
 
 
 @_with_client
@@ -483,7 +495,18 @@ def fetch_task(name, user=None, org=None, _client=None):
 
 
 @_with_client
-def update_task(name, rename=NOT_SET, query=NOT_SET, every=NOT_SET, cron=NOT_SET, offset=NOT_SET, description=NOT_SET, active=NOT_SET, org=None, _client=None):
+def update_task(
+    name,
+    rename=NOT_SET,
+    query=NOT_SET,
+    every=NOT_SET,
+    cron=NOT_SET,
+    offset=NOT_SET,
+    description=NOT_SET,
+    active=NOT_SET,
+    org=None,
+    _client=None,
+):
     """
     Update a task.
 
@@ -523,7 +546,13 @@ def update_task(name, rename=NOT_SET, query=NOT_SET, every=NOT_SET, cron=NOT_SET
     """
     existing = _get_task(_client, name=name, org=org)
     taskoptshelper = Task.from_flux(existing.flux)
-    for attr, var in (("name", rename), ("query", query), ("every", every), ("cron", cron), ("offset", offset)):
+    for attr, var in (
+        ("name", rename),
+        ("query", query),
+        ("every", every),
+        ("cron", cron),
+        ("offset", offset),
+    ):
         # This check should be `is not NOT_SET`, but that requires
         # Salt v3006. The workaround cannot work with `is`
         if var != NOT_SET:
@@ -534,13 +563,13 @@ def update_task(name, rename=NOT_SET, query=NOT_SET, every=NOT_SET, cron=NOT_SET
     if description != NOT_SET:
         existing.description = description
     if active is not None:
-        existing.status = influxdb_client.TaskStatusType.ACTIVE if active else influxdb_client.TaskStatusType.INACTIVE
+        existing.status = (
+            influxdb_client.TaskStatusType.ACTIVE
+            if active
+            else influxdb_client.TaskStatusType.INACTIVE
+        )
 
-    return (
-        _client.tasks_api()
-        .update_task(existing)
-        .to_dict()
-    )
+    return _client.tasks_api().update_task(existing).to_dict()
 
 
 @_with_client
@@ -565,11 +594,7 @@ def activate_task(name, org=None, _client=None):
     if existing.status == influxdb_client.TaskStatusType.ACTIVE:
         raise CommandExecutionError("Task is already active")
     existing.status = influxdb_client.TaskStatusType.ACTIVE
-    return (
-        _client.tasks_api()
-        .update_task(existing)
-        .to_dict()
-    )
+    return _client.tasks_api().update_task(existing).to_dict()
 
 
 @_with_client
@@ -594,11 +619,7 @@ def deactivate_task(name, org=None, _client=None):
     if existing.status == influxdb_client.TaskStatusType.INACTIVE:
         raise CommandExecutionError("Task is already inactive")
     existing.status = influxdb_client.TaskStatusType.INACTIVE
-    return (
-        _client.tasks_api()
-        .update_task(existing)
-        .to_dict()
-    )
+    return _client.tasks_api().update_task(existing).to_dict()
 
 
 # authorizations
