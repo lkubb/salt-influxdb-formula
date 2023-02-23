@@ -46,6 +46,8 @@ InfluxDB HTTP certificate is managed:
     - group: {{ influxdb.lookup.group }}
     - makedirs: True
     - append_certs: {{ influxdb.cert.intermediate | json }}
+    - days_remaining: {{ influxdb.cert.days_remaining }}
+    - days_valid: {{ influxdb.cert.days_valid }}
     - require:
       - sls: {{ sls_config_file }}
 {%-   if not salt["file.file_exists"](influxdb.config["tls-key"]) %}

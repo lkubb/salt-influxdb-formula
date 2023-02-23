@@ -39,7 +39,9 @@
           "intermediate": [],
           "signing_policy": null,
           "signing_private_key": null,
-          "signing_cert": null
+          "signing_cert": null,
+          "days_remaining": 7,
+          "days_valid": 30
         },
         "config": {
           "http-bind-address": "127.0.0.1:8086"
