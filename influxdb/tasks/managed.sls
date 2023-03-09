@@ -4,13 +4,17 @@
 {%- set sls_service_running = tplroot ~ ".service.running" %}
 {%- from tplroot ~ "/map.jinja" import mapdata as influxdb with context %}
 
-{%- set influxdb_token = salt["vault_db.get_creds"](influxdb.vault.manage_role, mount=influxdb.vault.database_mount)["password"] | d("null") %}
+{%- set influxdb_token = "" %}
+{%- if influxdb.vault.connection_name in salt["vault_db.list_connections"](influxdb.vault.database_mount) %}
+{%-   set influxdb_token = salt["vault_db.get_creds"](influxdb.vault.manage_role, mount=influxdb.vault.database_mount)["password"] | d("null") %}
+{%- endif %}
 {%- set influxdb_org = influxdb.vault.organization %}
 
 include:
   - {{ sls_service_running }}
 
-{%- for task in influxdb.tasks %}
+{%- if influxdb_token %}
+{%-   for task in influxdb.tasks %}
 
 InfluxDB task {{ task.name }} is managed:
   influxdb2.task_present:
@@ -27,9 +31,9 @@ InfluxDB task {{ task.name }} is managed:
     - influxdb_org: {{ influxdb_org }}
     - require:
       - sls: {{ sls_service_running }}
-{%- endfor %}
+{%-   endfor %}
 
-{%- for task in influxdb.tasks_absent %}
+{%-   for task in influxdb.tasks_absent %}
 
 InfluxDB task {{ task.name | d(task) }} is absent:
   influxdb2.task_absent:
@@ -40,4 +44,5 @@ InfluxDB task {{ task.name | d(task) }} is absent:
     - influxdb_org: {{ influxdb_org }}
     - require:
       - sls: {{ sls_service_running }}
-{%- endfor %}
+{%-   endfor %}
+{%- endif %}
