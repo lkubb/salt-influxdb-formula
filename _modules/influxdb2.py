@@ -34,7 +34,8 @@ import logging
 from functools import wraps
 
 from influxdb2util import Task, timestring_map
-from salt.exceptions import CommandExecutionError, SaltInvocationError
+from salt.exceptions import (CommandExecutionError, SaltException,
+                             SaltInvocationError)
 
 try:
     import influxdb_client
@@ -171,7 +172,7 @@ def _get_bucket(_client, name, org=None):
 
 
 @_with_client
-def create_bucket(name, expire="30d", description=None, org=None, _client=None):
+def create_bucket(name, expire="30d", description=None, org=None, **kwargs):
     """
     Create a bucket.
 
@@ -194,6 +195,12 @@ def create_bucket(name, expire="30d", description=None, org=None, _client=None):
     org
         Override the default organization set in the configuration.
     """
+    try:
+        # We need to accept **kwargs, otherwise Salt will refuse to run this
+        # function with overridden parameters.
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _fetch_bucket(_client, name=name, org=org)
     if existing is not None:
         raise CommandExecutionError(
@@ -211,7 +218,7 @@ def create_bucket(name, expire="30d", description=None, org=None, _client=None):
 
 
 @_with_client
-def delete_bucket(name, org=None, _client=None):
+def delete_bucket(name, org=None, **kwargs):
     """
     Drop a bucket.
 
@@ -227,12 +234,16 @@ def delete_bucket(name, org=None, _client=None):
     org
         Override the default organization set in the configuration.
     """
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_bucket(_client, name=name, org=org)
     return _client.buckets_api().delete_bucket(existing) or True
 
 
 @_with_client
-def fetch_bucket(name, org=None, _client=None):
+def fetch_bucket(name, org=None, **kwargs):
     """
     Returns a bucket or None.
 
@@ -248,6 +259,10 @@ def fetch_bucket(name, org=None, _client=None):
     org
         Override the default organization set in the configuration.
     """
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     bucket = _fetch_bucket(_client, name, org=org)
     if bucket is None:
         return bucket
@@ -255,7 +270,7 @@ def fetch_bucket(name, org=None, _client=None):
 
 
 @_with_client
-def list_buckets(name=None, org=None, _client=None):
+def list_buckets(name=None, org=None, **kwargs):
     """
     List all InfluxDB buckets.
 
@@ -274,11 +289,15 @@ def list_buckets(name=None, org=None, _client=None):
     org
         Override the default organization set in the configuration.
     """
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     return [bucket.to_dict() for bucket in _list_buckets(_client, name=name, org=org)]
 
 
 @_with_client
-def update_bucket(name, expire=NOT_SET, description=NOT_SET, org=NOT_SET, _client=None):
+def update_bucket(name, expire=NOT_SET, description=NOT_SET, org=NOT_SET, **kwargs):
     """
     Create/update a bucket.
 
@@ -303,6 +322,10 @@ def update_bucket(name, expire=NOT_SET, description=NOT_SET, org=NOT_SET, _clien
     """
     if expire == NOT_SET and description == NOT_SET:
         raise SaltInvocationError("Need at least one parameter to update")
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_bucket(_client, name=name, org=org)
     if expire != NOT_SET:
         expire = timestring_map(expire)
@@ -341,7 +364,7 @@ def _list_tasks(_client, name, user, org):
 
 
 @_with_client
-def list_tasks(name=None, user=None, org=None, _client=None):
+def list_tasks(name=None, user=None, org=None, **kwargs):
     """
     List all InfluxDB buckets.
 
@@ -360,6 +383,10 @@ def list_tasks(name=None, user=None, org=None, _client=None):
     org
         Filter tasks to a specific organization.
     """
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     tasks = _list_tasks(_client, name=name, user=user, org=org)
     return [task.to_dict() for task in tasks]
 
@@ -399,7 +426,7 @@ def create_task(
     description=None,
     active=True,
     org=None,
-    _client=None,
+    **kwargs,
 ):
     """
     Create a task.
@@ -434,6 +461,10 @@ def create_task(
     org
         Override the default organization set in the configuration.
     """
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _fetch_task(_client, name=name, org=org)
     if existing is not None:
         raise CommandExecutionError(
@@ -453,7 +484,7 @@ def create_task(
 
 
 @_with_client
-def delete_task(name, org=None, _client=None):
+def delete_task(name, org=None, **kwargs):
     """
     Delete a task.
 
@@ -469,12 +500,16 @@ def delete_task(name, org=None, _client=None):
     org
         Override the default organization set in the configuration.
     """
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_task(_client, name=name, org=org)
     return _client.tasks_api().delete_task(existing.id) or True
 
 
 @_with_client
-def fetch_task(name, user=None, org=None, _client=None):
+def fetch_task(name, user=None, org=None, **kwargs):
     """
     Returns a task or None.
 
@@ -490,6 +525,10 @@ def fetch_task(name, user=None, org=None, _client=None):
     org
         Override the default organization set in the configuration.
     """
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     task = _fetch_task(_client, name, user=user, org=org)
     if task is None:
         return task
@@ -510,7 +549,7 @@ def update_task(
     description=NOT_SET,
     active=NOT_SET,
     org=None,
-    _client=None,
+    **kwargs,
 ):
     """
     Update a task.
@@ -549,6 +588,10 @@ def update_task(
         Override the default organization set in the configuration.
         Cannot be used to change org on the task.
     """
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_task(_client, name=name, org=org)
     taskoptshelper = Task.from_flux(existing.flux)
     for attr, var in (
@@ -578,7 +621,7 @@ def update_task(
 
 
 @_with_client
-def activate_task(name, org=None, _client=None):
+def activate_task(name, org=None, **kwargs):
     """
     Activate a task.
 
@@ -595,6 +638,10 @@ def activate_task(name, org=None, _client=None):
         Override the default organization set in the configuration.
         Cannot be used to change org on the task.
     """
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_task(_client, name=name, org=org)
     if existing.status == influxdb_client.TaskStatusType.ACTIVE:
         raise CommandExecutionError("Task is already active")
@@ -603,7 +650,7 @@ def activate_task(name, org=None, _client=None):
 
 
 @_with_client
-def deactivate_task(name, org=None, _client=None):
+def deactivate_task(name, org=None, **kwargs):
     """
     Deactivate a task.
 
@@ -620,6 +667,10 @@ def deactivate_task(name, org=None, _client=None):
         Override the default organization set in the configuration.
         Cannot be used to change org on the task.
     """
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_task(_client, name=name, org=org)
     if existing.status == influxdb_client.TaskStatusType.INACTIVE:
         raise CommandExecutionError("Task is already inactive")
@@ -632,7 +683,7 @@ def deactivate_task(name, org=None, _client=None):
 
 
 @_with_client
-def query(query, org=None, bind_params=None, columns=None, _client=None):
+def query(query, org=None, bind_params=None, columns=None, **kwargs):
     """
     Execute a Flux query.
 
@@ -654,6 +705,10 @@ def query(query, org=None, bind_params=None, columns=None, _client=None):
     columns
         Filter required columns.
     """
+    try:
+        _client = kwargs.pop("client")
+    except KeyError:
+        raise SaltException("Did not receive a client. This is a coding bug.")
     res = _client.query_api().query(query, org=org, params=bind_params)
     # TODO This returns raw datetime objects. Convert?
     return res.to_values(columns)
