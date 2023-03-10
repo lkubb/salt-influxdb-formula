@@ -32,7 +32,8 @@ InfluxDB HTTP certificate is managed:
     - ca_server: {{ influxdb.cert.ca_server or "null" }}
     - signing_policy: {{ influxdb.cert.signing_policy or "null" }}
     - signing_cert: {{ influxdb.cert.signing_cert or "null" }}
-    - signing_private_key: {{ influxdb.cert.signing_private_key or (influxdb.config["tls-cert"] if not influxdb.cert.ca_server and not influxdb.cert.signing_cert else "null") }}
+    - signing_private_key: {{ influxdb.cert.signing_private_key or
+                              (influxdb.config["tls-cert"] if not influxdb.cert.ca_server and not influxdb.cert.signing_cert else "null") }}
     - private_key: {{ influxdb.config["tls-key"] }}
     - authorityKeyIdentifier: keyid:always
     - basicConstraints: critical, CA:false

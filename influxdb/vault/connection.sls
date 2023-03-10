@@ -19,7 +19,7 @@ Initialize Vault database configuration:
     - allowed_roles: {{ influxdb.vault_roles | map(attribute="name") | list | json }}
     # requires custom plugin
     - plugin: influxdb2
-    - host: {{ influxdb._host}}
+    - host: {{ influxdb._host }}
     - port: {{ influxdb._port }}
     - password: {{ influxdb.vault.token or salt["pillar.get"](influxdb.vault.token_pillar, "null") }}
     - organization: {{ influxdb.vault.organization }}
