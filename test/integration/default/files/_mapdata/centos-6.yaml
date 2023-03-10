@@ -8,6 +8,8 @@ values:
   lookup:
     arch: amd64
     rootgroup: root
+    pkg:
+      name: influxdb2
     enablerepo:
       stable: true
     config: '/etc/influxdb/config.toml'

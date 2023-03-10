@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 # vim: ft=sls
 
-{%- set tplroot = tpldir.split('/')[0] %}
-{%- set sls_config_file = tplroot ~ '.config.file' %}
-{%- set sls_cert_managed = tplroot ~ '.cert.managed' %}
+{%- set tplroot = tpldir.split("/")[0] %}
+{%- set sls_config_file = tplroot ~ ".config.file" %}
+{%- set sls_cert_managed = tplroot ~ ".cert.managed" %}
 {%- from tplroot ~ "/map.jinja" import mapdata as influxdb with context %}
 
 include:
@@ -13,7 +12,7 @@ include:
 InfluxDB is running:
   service.running:
     - name: {{ influxdb.lookup.service.name }}
-    - enable: True
+    - enable: true
     - watch:
       - sls: {{ sls_config_file }}
 {%- if influxdb.config.get("tls-key") and influxdb.config.get("tls-cert") %}

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # vim: ft=yaml
 # yamllint disable rule:comments-indentation
 ---
@@ -69,6 +68,6 @@ influxdb:
       # The entries under `source_files` are prepended to the default source files
       # given for the state
     source_files:
-      influxdb-config-file-file-managed:
+      InfluxDB configuration is managed:
         - 'example_alt.tmpl'
         - 'example_alt.tmpl.jinja'

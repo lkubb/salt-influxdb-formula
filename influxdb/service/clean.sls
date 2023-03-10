@@ -1,10 +1,13 @@
-# -*- coding: utf-8 -*-
 # vim: ft=sls
 
-{%- set tplroot = tpldir.split('/')[0] %}
+{#-
+    Stops the influxdb service and disables it at boot time.
+#}
+
+{%- set tplroot = tpldir.split("/")[0] %}
 {%- from tplroot ~ "/map.jinja" import mapdata as influxdb with context %}
 
-influxdb-service-clean-service-dead:
+InfluxDB is dead:
   service.dead:
     - name: {{ influxdb.lookup.service.name }}
-    - enable: False
+    - enable: false

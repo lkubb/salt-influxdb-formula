@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # vim: ft=yaml
 ---
 influxdb:
@@ -7,6 +6,8 @@ influxdb:
     # Just for testing purposes
     winner: lookup
     added_in_lookup: lookup_value
+    pkg:
+      name: influxdb2
     enablerepo:
       stable: true
     config: '/etc/influxdb/config.toml'
