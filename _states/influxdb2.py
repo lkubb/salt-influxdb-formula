@@ -20,11 +20,13 @@ influxdb_token
 influxdb_org
     Override the configured default organization. If not configured, defaults to ``salt``.
 """
+import logging
 
 from influxdb2util import FluxQuery, Task, timestring_map
 from salt.exceptions import CommandExecutionError, SaltInvocationError
 
 __virtualname__ = "influxdb2"
+log = logging.getLogger(__name__)
 
 
 def __virtual__():

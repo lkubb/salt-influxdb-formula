@@ -38,7 +38,7 @@ from salt.exceptions import CommandExecutionError, SaltInvocationError
 
 try:
     import influxdb_client
-    from influxdb_client.client.exceptions import InfluxDBError
+    from influxdb_client.client.exceptions import ApiException, InfluxDBError
 
     HAS_INFLUXDB = True
 except ImportError:
@@ -130,7 +130,12 @@ def _list_buckets(_client, name=None, org=None):
     buckets = []
 
     while True:
-        new_buckets = api.find_buckets(**payload).buckets
+        try:
+            new_buckets = api.find_buckets(**payload).buckets
+        except ApiException as err:
+            if err.status != 404:
+                raise
+            new_buckets = None
         if not new_buckets:
             break
         buckets.extend(new_buckets)
