@@ -198,7 +198,7 @@ def create_bucket(name, expire="30d", description=None, org=None, **kwargs):
     try:
         # We need to accept **kwargs, otherwise Salt will refuse to run this
         # function with overridden parameters.
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _fetch_bucket(_client, name=name, org=org)
@@ -235,7 +235,7 @@ def delete_bucket(name, org=None, **kwargs):
         Override the default organization set in the configuration.
     """
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_bucket(_client, name=name, org=org)
@@ -260,7 +260,7 @@ def fetch_bucket(name, org=None, **kwargs):
         Override the default organization set in the configuration.
     """
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     bucket = _fetch_bucket(_client, name, org=org)
@@ -290,7 +290,7 @@ def list_buckets(name=None, org=None, **kwargs):
         Override the default organization set in the configuration.
     """
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     return [bucket.to_dict() for bucket in _list_buckets(_client, name=name, org=org)]
@@ -323,7 +323,7 @@ def update_bucket(name, expire=NOT_SET, description=NOT_SET, org=NOT_SET, **kwar
     if expire == NOT_SET and description == NOT_SET:
         raise SaltInvocationError("Need at least one parameter to update")
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_bucket(_client, name=name, org=org)
@@ -384,7 +384,7 @@ def list_tasks(name=None, user=None, org=None, **kwargs):
         Filter tasks to a specific organization.
     """
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     tasks = _list_tasks(_client, name=name, user=user, org=org)
@@ -462,7 +462,7 @@ def create_task(
         Override the default organization set in the configuration.
     """
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _fetch_task(_client, name=name, org=org)
@@ -501,7 +501,7 @@ def delete_task(name, org=None, **kwargs):
         Override the default organization set in the configuration.
     """
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_task(_client, name=name, org=org)
@@ -526,7 +526,7 @@ def fetch_task(name, user=None, org=None, **kwargs):
         Override the default organization set in the configuration.
     """
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     task = _fetch_task(_client, name, user=user, org=org)
@@ -589,7 +589,7 @@ def update_task(
         Cannot be used to change org on the task.
     """
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_task(_client, name=name, org=org)
@@ -639,7 +639,7 @@ def activate_task(name, org=None, **kwargs):
         Cannot be used to change org on the task.
     """
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_task(_client, name=name, org=org)
@@ -668,7 +668,7 @@ def deactivate_task(name, org=None, **kwargs):
         Cannot be used to change org on the task.
     """
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     existing = _get_task(_client, name=name, org=org)
@@ -706,7 +706,7 @@ def query(query, org=None, bind_params=None, columns=None, **kwargs):
         Filter required columns.
     """
     try:
-        _client = kwargs.pop("client")
+        _client = kwargs.pop("_client")
     except KeyError:
         raise SaltException("Did not receive a client. This is a coding bug.")
     res = _client.query_api().query(query, org=org, params=bind_params)
