@@ -34,12 +34,12 @@ import logging
 from functools import wraps
 
 from influxdb2util import Task, timestring_map
-from salt.exceptions import (CommandExecutionError, SaltException,
-                             SaltInvocationError)
+from salt.exceptions import CommandExecutionError, SaltException, SaltInvocationError
 
 try:
     import influxdb_client
-    from influxdb_client.client.exceptions import ApiException, InfluxDBError
+    from influxdb_client.client.exceptions import InfluxDBError
+    from influxdb_client.rest import ApiException
 
     HAS_INFLUXDB = True
 except ImportError:
