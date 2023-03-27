@@ -25,8 +25,51 @@
       "subcomponent": "",
       "subcomponent_config": "",
       "git_username": "lkubb",
-      "lookup": {},
-      "settings": {},
+      "lookup": {
+        "group": "influxdb",
+        "user": "influxdb",
+        "pkg_cli": "influxdb2-cli"
+      },
+      "settings": {
+        "buckets": [],
+        "buckets_absent": [],
+        "cert": {
+          "ca_server": null,
+          "cn": null,
+          "intermediate": [],
+          "signing_policy": null,
+          "signing_private_key": null,
+          "signing_cert": null,
+          "days_remaining": 7,
+          "days_valid": 30
+        },
+        "config": {
+          "http-bind-address": "127.0.0.1:8086"
+        },
+        "init": {
+          "bucket": "default",
+          "host": null,
+          "org": "default",
+          "user_password": null,
+          "user_password_pillar": null,
+          "username": "admin"
+        },
+        "tasks": [],
+        "tasks_absent": [],
+        "vault": {
+          "connection_name": "influxdb2",
+          "database_mount": "database",
+          "influx_host": null,
+          "influx_port": null,
+          "manage_role": "manage",
+          "organization": "default",
+          "token": null,
+          "token_pillar": null
+        },
+        "vault_roles": [],
+        "version": null,
+        "remove_all_data_for_sure": false
+      },
       "_template": "https://github.com/lkubb/salt-template-formula"
     }
   },
