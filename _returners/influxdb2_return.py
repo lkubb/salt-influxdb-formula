@@ -96,6 +96,7 @@ event tag.
         tags:
           fun: '{fun}'
           minion: '{id}'
+          salt_version: '{salt_version}'
 
       # Transformations for particular functions
       # Functions are keys (literal), values as in the default transformation
@@ -109,30 +110,76 @@ event tag.
           retcode: '{retcode}'
           states_failed: '{states_failed}'
           states_total: '{states_total}'
+          states_changed: '{states_changed}'
+          states_duration: '{states_duration}'
         tags:
           fun: '{fun}'
           minion: '{id}'
+          salt_version: '{salt_version}'
+          state_name: '{state_name}'
 
 The templates values can be a simple ``{var}``, for which the raw value of the
-dictionary is returned if it is compatible with InfluxDB for the scope, otherwise
+return dictionary is returned if it is compatible with InfluxDB for the scope, otherwise
 it is dumped as a JSON string. For this simple case, you can even traverse the
-dict like ``{return:value}``. Note the quotes around the YAML values!
+return dict like ``{return:value}``. Note the quotes around the YAML values!
 
 The template values can also be Python format strings, in which case you cannot
-traverse the dictionaries and only have access to the top keys.
+traverse dictionaries and only have access to the top keys.
 
 Depending on the type, there are miscellaneous template vars available.
 
-returns
-    ``full_ret`` (full return dict, excluding ``result``), ``ret_str``
-    (return cast to str) and ``module`` (the module part of ``fun``)
+General
+^^^^^^^
+full_ret
+    full return dict, excluding ``result``
 
-returns for state functions
-    In addition, ``states_succeeded``, ``states_failed`` and ``states_total``,
-    which each report the sum, not the state IDs.
+ret_str
+    return cast to str
 
-events
-    ``master``, which is ``opts["id"]`` of the master posting the event
+module
+    the module part of ``fun``
+
+salt_version
+    The current version of Salt as reported in grains, split on the first "+".
+
+
+State functions
+^^^^^^^^^^^^^^^
+All general vars are available.
+
+state_name
+    The name of the state that was run. ``highstate`` for
+    highstates, otherwise the first positional argument to
+    state.apply/sls.
+
+states_succeeded
+    Number of succeeded states during this state run.
+
+states_succeeded_pct
+    Percentage of succeeded states during this state run.
+
+states_failed
+    Number of failed states during this state run.
+
+states_failed_pct
+    Percentage of failed states during this state run.
+
+states_changed
+    Number of states reporting changes during this state run.
+
+states_changed_pct
+    Percentage of states reporting changes during this state run.
+
+states_total
+    Number of all states during this state run.
+
+states_duration
+    Sum of all reported invididual state durations.
+
+Events
+^^^^^^
+master
+    ``opts["id"]`` of the master posting the event
 
 Alternatives
 ~~~~~~~~~~~~
@@ -184,6 +231,7 @@ DEFAULT_FUNCTION_POINT = immutabletypes.freeze(
         "tags": {
             "fun": "{fun}",
             "minion": "{id}",
+            "salt_version": "{salt_version}",
         },
     }
 )
@@ -208,10 +256,14 @@ DEFAULT_STATE_POINT = immutabletypes.freeze(
             "retcode": "{retcode}",
             "states_failed": "{states_failed}",
             "states_total": "{states_total}",
+            "states_changed": "{states_changed}",
+            "states_duration": "{states_duration}",
         },
         "tags": {
             "fun": "{fun}",
+            "state": "{state_name}",
             "minion": "{id}",
+            "salt_version": "{salt_version}",
         },
     }
 )
@@ -301,6 +353,7 @@ def returner(ret):
         # https://github.com/saltstack/salt/issues/59012
         # @FIXMEMAYBE
         "full_ret": lambda x: json.dumps({k: v for k, v in x.items() if k != "return"}),
+        "salt_version": _salt_version,
     }
 
     # function-specific formats take precedence before state-specific and global
@@ -311,9 +364,23 @@ def returner(ret):
     # in that case skip treating it as a state run
     if ret["fun"] in STATE_FUNCTIONS and isinstance(ret["return"], dict):
         ssum = StateSum(ret)
-        mappings["states_succeeded"] = ssum.succeeded
-        mappings["states_failed"] = ssum.failed
         mappings["states_total"] = ssum.total
+        mappings["states_succeeded"] = ssum.succeeded
+        mappings["states_succeeded_pct"] = ssum.succeeded_pct
+        mappings["states_failed"] = ssum.failed
+        mappings["states_failed_pct"] = ssum.failed_pct
+        mappings["states_changed"] = ssum.changed
+        mappings["states_changed_pct"] = ssum.changed_pct
+        mappings["states_duration"] = ssum.duration
+        mappings["state_name"] = (
+            lambda x: "highstate"
+            if x["fun"] == "state.highstate"
+            or (
+                x["fun"] == "state.apply"
+                and (not ret["fun_args"] or "=" in ret["fun_args"][0])
+            )
+            else ret["fun_args"][0]
+        )
         # fmt for state.[apply|highstate|sls]
         # alternatives: allow per module or matching regex
         # (former might be incorrect, latter expensive)
@@ -372,7 +439,8 @@ def event_return(events):
                     and not _re_match(options["events_allowlist"], event["tag"])
                 ):
                     log.info(
-                        f"Skipping InfluxDB2 event return for event {event['tag']} because it is filtered"
+                        "Skipping InfluxDB2 event return for event "
+                        f"{event['tag']} because it is filtered"
                     )
                     continue
                 prj = Projector(mappings, event)
@@ -539,6 +607,8 @@ class StateSum:
         self._succeeded = None
         self._failed = None
         self._total = None
+        self._changed = None
+        self._duration = None
 
     def succeeded(self, _):
         """
@@ -549,6 +619,15 @@ class StateSum:
             self._sum()
         return self._succeeded
 
+    def succeeded_pct(self, _):
+        """
+        Return the percentage of state runs that reported success,
+        where None from test runs counts as succeeded
+        """
+        if self._succeeded is None:
+            self._sum()
+        return round(self._succeeded / self._total * 100, 2)
+
     def failed(self, _):
         """
         Return the sum of failed state runs
@@ -556,6 +635,14 @@ class StateSum:
         if self._failed is None:
             self._sum()
         return self._failed
+
+    def failed_pct(self, _):
+        """
+        Return the percentage of state runs that reported failure
+        """
+        if self._failed is None:
+            self._sum()
+        return round(self._failed / self._total * 100, 2)
 
     def total(self, _):
         """
@@ -565,14 +652,53 @@ class StateSum:
             self._sum()
         return self._total
 
+    def changed(self, _):
+        """
+        Return the sum of state runs that reported changes
+        """
+        if self._changed is None:
+            self._sum()
+        return self._changed
+
+    def changed_pct(self, _):
+        """
+        Return the percentage of state runs that reported changes
+        """
+        if self._changed is None:
+            self._sum()
+        return round(self._changed / self._total * 100, 2)
+
+    def duration(self, _):
+        """
+        Return the sum of all reported state run durations
+        """
+        if self._duration is None:
+            self._sum()
+        return self._duration
+
     def _sum(self):
-        failed_ = succeeded_ = total_ = 0
-        for single in self.data["return"].values():
-            total_ += 1
+        failed = succeeded = total = changed = duration = 0
+        for single in self.data.get("return", {}).values():
+            total += 1
             if single["result"] is False:
-                failed_ += 1
+                failed += 1
             else:
-                succeeded_ += 1
-        self._failed = failed_
-        self._succeeded = succeeded_
-        self._total = total_
+                succeeded += 1
+            if single.get("changes"):
+                changed += 1
+            duration += single.get("duration", 0)
+        self._failed = failed
+        self._succeeded = succeeded
+        self._total = total
+        self._changed = changed
+        self._duration = round(duration, 2)
+
+
+def _salt_version(_):
+    try:
+        version = __grains__["saltversion"]
+    except (NameError, IndexError):
+        import salt.version
+
+        version = salt.version.__version__
+    return version.split("+", maxsplit=1)[0]
