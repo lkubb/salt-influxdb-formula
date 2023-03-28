@@ -13,7 +13,12 @@ You can set it as a default returner in the minion configuration
 
 .. code-block:: yaml
 
+    # for everything except scheduled tasks
     return:
+      - influxdb2
+
+    # for scheduled tasks
+    schedule_returners:
       - influxdb2
 
 
@@ -78,6 +83,7 @@ event tag.
 
       # Transformations for particular event tags
       # Tags are keys (literal), values as in the default transformation
+      # TODO: regex dict
       event_point_fmt_tag: {}
 
       # Default transformation for returns
@@ -291,17 +297,13 @@ def returner(ret):
         # typical `nested:value` notation can be used.
         "module": lambda x: x["fun"].split(".")[0],
         "ret_str": lambda x: str(x["return"]),
+        # Just dumping the data as JSON causes issues with bytes:
+        # https://github.com/saltstack/salt/issues/59012
+        # @FIXMEMAYBE
+        "full_ret": lambda x: json.dumps({k: v for k, v in x.items() if k != "return"}),
     }
 
-    # Just dumping the data as JSON causes issues with bytes:
-    # https://github.com/saltstack/salt/issues/59012
-    # @FIXMEMAYBE
-    try:
-        mappings["full_ret"] = lambda x: json.dumps({k: v for k, v in x.items() if k != "return"})
-    except TypeError:
-        mappings["full_ret"] = ""
-
-    prj = Projector(mappings, ret)
+    # function-specific formats take precedence before state-specific and global
     fmt = options["function_point_fmt_fun"].get(ret["fun"])
 
     # State returns can render more specific insights.
@@ -317,8 +319,10 @@ def returner(ret):
         # (former might be incorrect, latter expensive)
         fmt = fmt or options["function_point_fmt_state"]
 
+    # in case no more specific format was defined, render default one
     fmt = fmt or options["function_point_fmt"]
 
+    prj = Projector(mappings, ret)
     record = {
         "measurement": fmt.get("measurement", DEFAULT_FUNCTION_POINT["measurement"]),
         # tag values must be strings
@@ -410,7 +414,9 @@ def _client(options):
 
     def conn(url, org, token):
         try:
-            with influxdb_client.InfluxDBClient(url=client_kwargs[0], org=client_kwargs[1], token=client_kwargs[2]) as client:
+            with influxdb_client.InfluxDBClient(
+                url=client_kwargs[0], org=client_kwargs[1], token=client_kwargs[2]
+            ) as client:
                 while True:
                     yield client
         except InfluxDBError as err:
@@ -464,18 +470,21 @@ def _project(projector, structure):
     ret = {}
     for key, val in structure.items():
         try:
-            # raw values if not a format string other than ~ "{value}"
-            ret[key] = projector[val[1:-1]]
-            continue
-        except KeyError:
-            pass
-        try:
+            try:
+                # raw values if not a format string other than ~ "{value}"
+                ret[key] = projector[val[1:-1]]
+                continue
+            except KeyError:
+                pass
             # custom mappings and top-level keys only
             ret[key] = val.format(**projector)
             continue
-        except (KeyError, ValueError):
-            pass
-        log.warning(f"Failed rendering point template for {key}: '{val}'")
+        except Exception as err:  # pylint: disable=broad-except
+            log.warning(
+                f"Failed rendering point template for {key}: '{val}'. "
+                f"{err.__class__.__name__}: {err}"
+            )
+        ret[key] = None
 
     return ret
 
