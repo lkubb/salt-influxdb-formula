@@ -1,5 +1,5 @@
 import re
-
+from collections.abc import Mapping
 from salt.exceptions import CommandExecutionError, SaltInvocationError
 
 
@@ -101,3 +101,29 @@ def timestring_map(val):
     if unit == "d":
         return raw
     raise RuntimeError("This path should not have been hit")
+
+
+class RegexDict(Mapping):
+    def __init__(self, mappings, compile_ptrn=True):
+        self._patterns = list(mappings)
+        self._data = [mappings[ptrn] for ptrn in self._patterns]
+        self._regex = "|".join(f"({ptrn})" for ptrn in self._patterns)
+        if compile_ptrn:
+            self._ptrn = re.compile(self._regex)
+        else:
+            self._ptrn = None
+
+    def __getitem__(self, key):
+        if self._ptrn is not None:
+            match = self._ptrn.fullmatch(key)
+        else:
+            match = re.fullmatch(self._regex, key)
+        if match is not None:
+            return self._data[match.lastindex - 1]
+        raise KeyError(key)
+
+    def __iter__(self):
+        yield from self._patterns
+
+    def __len__(self):
+        return len(self._patterns)

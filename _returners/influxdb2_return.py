@@ -82,8 +82,9 @@ event tag.
           tag: '{tag}'
 
       # Transformations for particular event tags
-      # Tags are keys (literal), values as in the default transformation
-      # TODO: regex dict
+      # Tags are keys (regular expressions), values as in the default transformation.
+      # If a necessary value is unset, it will be taken from the default one.
+      # The order matters - only the first match will be processed.
       event_point_fmt_tag: {}
 
       # Default transformation for returns
@@ -99,7 +100,10 @@ event tag.
           salt_version: '{salt_version}'
 
       # Transformations for particular functions
-      # Functions are keys (literal), values as in the default transformation
+      # Functions are keys (regular expressions), values as in the default transformation
+      # If a necessary value is unset, it will be taken from the default one.
+      # The order matters - only the first match will be processed.
+      # This has the highest priority, before state-specific and default transformations.
       function_point_fmt_fun: {}
 
       # Transformation for `state.[apply|highstate|sls]` in particular
@@ -195,6 +199,8 @@ the default location:
     alternative.influxdb2.org: salt_alt
     alternative.influxdb2.bucket: salt_alt
     alternative.influxdb2.token: my-alt-token
+
+.. _influxdb2-metrics-config:
 """
 
 import logging
@@ -202,6 +208,7 @@ import re
 from collections.abc import Mapping
 from datetime import datetime
 
+import influxdb2util
 import salt.returners
 import salt.utils.immutabletypes as immutabletypes
 import salt.utils.json as json
@@ -269,6 +276,9 @@ DEFAULT_STATE_POINT = immutabletypes.freeze(
 )
 
 STATE_FUNCTIONS = ("state.apply", "state.highstate", "state.sls")
+EVENT_MAP = None
+EVENT_ALLOW_REGEX = None
+EVENT_BLOCK_REGEX = None
 
 
 def __virtual__():
@@ -356,8 +366,15 @@ def returner(ret):
         "salt_version": _salt_version,
     }
 
-    # function-specific formats take precedence before state-specific and global
-    fmt = options["function_point_fmt_fun"].get(ret["fun"])
+    fmt = None
+    if options["function_point_fmt_fun"]:
+        try:
+            # function-specific formats take precedence before state-specific and global
+            fmt = influxdb2util.RegexDict(
+                options["function_point_fmt_fun"], compile_ptrn=False
+            )[ret["fun"]]
+        except KeyError:
+            pass
 
     # State returns can render more specific insights.
     # ret["return"] can be a list in case rendering the highstate failed,
@@ -420,33 +437,62 @@ def event_return(events):
     Write event to an InfluxDB bucket
     """
     try:
+        event_allow_ckey = "_influxdb2_event_allow"
+        event_block_ckey = "_influxdb2_event_block"
+        event_map_ckey = "_influxdb2_event_map"
+
         options = _get_options()
         client = _client(options)
         mappings = {
             "master": __opts__["id"],
         }
 
+        # This whole function operates under the assumption that the event returner
+        # process is long-lived @TODO check that that's the case
+        if event_allow_ckey not in __context__:
+            __context__[event_allow_ckey] = re.compile(
+                "|".join(
+                    f"({ptrn})" for ptrn in (options["events_allowlist"] or [".*"])
+                )
+            )
+
+        filtered = [
+            evt for evt in events if __context__[event_allow_ckey].fullmatch(evt["tag"])
+        ]
+
+        if options["events_blocklist"]:
+            if event_block_ckey not in __context__:
+                __context__[event_block_ckey] = re.compile(
+                    "|".join(f"({ptrn})" for ptrn in options["events_blocklist"])
+                )
+            filtered = [
+                evt
+                for evt in events
+                if not __context__[event_allow_ckey].fullmatch(evt["tag"])
+            ]
+
+        if not filtered:
+            return
+
+        if event_map_ckey not in __context__:
+            if ".*" not in options["event_point_fmt_tag"]:
+                options["event_point_fmt_tag"][".*"] = DEFAULT_EVENT_POINT
+            __context__[event_map_ckey] = influxdb2util.RegexDict(
+                options["event_point_fmt_tag"]
+            )
+
         def error_callback(conf, _, exception):
             log.error(f"Could not write batch {conf}: {exception}")
 
         with client.write_api(error_callback=error_callback) as _write_client:
-            for event in events:
-                # Doing the filtering after connecting might be suboptimal
-                # if most events are filtered @FIXME?
-                if (
-                    _re_match(options["events_blocklist"], event["tag"])
-                    or options["events_allowlist"]
-                    and not _re_match(options["events_allowlist"], event["tag"])
-                ):
-                    log.info(
-                        "Skipping InfluxDB2 event return for event "
-                        f"{event['tag']} because it is filtered"
-                    )
-                    continue
+            for event in filtered:
                 prj = Projector(mappings, event)
-                fmt = options["event_point_fmt_tag"].get(
-                    event["tag"], options["event_point_fmt"]
-                )
+                fmt = __context__[event_map_ckey][event["tag"]]
+                timestamp = event.get("_stamp")
+                if timestamp is not None:
+                    timestamp = datetime.fromisoformat(timestamp)
+                else:
+                    timestamp = datetime.utcnow()
                 record = {
                     "measurement": fmt.get(
                         "measurement", DEFAULT_EVENT_POINT["measurement"]
@@ -463,7 +509,7 @@ def event_return(events):
                         prj,
                         fmt.get("fields", DEFAULT_EVENT_POINT["fields"]),
                     ),
-                    "time": datetime.utcnow(),
+                    "time": timestamp,
                 }
                 _write_client.write(options["bucket"], record=record)
     except Exception as err:
