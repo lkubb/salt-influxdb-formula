@@ -4,7 +4,7 @@ Return data to an InfluxDB v2 server.
 Note that this returner is not intended nor working as a job cache,
 but for metrics collection about Salt internals.
 
-:depends: `influxdb-client` Python module
+:depends: ``influxdb-client`` Python module
 
 Configuration
 -------------
@@ -144,7 +144,7 @@ module
     the module part of ``fun``
 
 salt_version
-    The current version of Salt as reported in grains, split on the first "+".
+    The current version of Salt as reported in grains, split on the first ``+``.
 
 
 State functions
@@ -333,9 +333,6 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
 )
 
 STATE_FUNCTIONS = ("state.apply", "state.highstate", "state.sls")
-EVENT_MAP = None
-EVENT_ALLOW_REGEX = None
-EVENT_BLOCK_REGEX = None
 
 
 def __virtual__():
@@ -492,7 +489,7 @@ def returner(ret):
 
 def event_return(events):
     """
-    Write event to an InfluxDB bucket
+    Write events to an InfluxDB bucket
     """
     try:
         event_allow_ckey = "_influxdb2_event_allow"
