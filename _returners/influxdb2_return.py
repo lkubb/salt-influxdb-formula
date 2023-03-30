@@ -203,6 +203,7 @@ the default location:
 .. _influxdb2-metrics-config:
 """
 
+import copy
 import logging
 import re
 from collections.abc import Mapping
@@ -275,6 +276,62 @@ DEFAULT_STATE_POINT = immutabletypes.freeze(
     }
 )
 
+INBUILT_EVENT_POINTS = immutabletypes.freeze(
+    {
+        "salt/auth": {
+            "measurement": "events",
+            "tags": {
+                "tag": "{tag}",
+                "act": "{data:act}",
+                "event_type": "auth",
+                "minion": "{data:id}",
+            },
+        },
+        r"salt/job/\d+/new": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "job",
+                "jid": "{data:jid}",
+                "fun": "{data:fun}",
+            }
+        },
+        r"salt/job/\d+/ret/[^/\\]+": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "job",
+                "jid": "{data:jid}",
+                "fun": "{data:fun}",
+                "success": "{data:success}",
+            }
+        },
+        r"salt/run/\d+/new": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "run",
+                "jid": "{data:jid}",
+                "fun": "{data:fun}",
+                "user": "{data:user}",
+            }
+        },
+        r"salt/run/\d+/ret": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "run",
+                "jid": "{data:jid}",
+                "fun": "{data:fun}",
+                "user": "{data:user}",
+                "success": "{data:success}",
+            }
+        },
+        r"minion/refresh/[^/\\]+": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "minion_data_refresh",
+            }
+        },
+    }
+)
+
 STATE_FUNCTIONS = ("state.apply", "state.highstate", "state.sls")
 EVENT_MAP = None
 EVENT_ALLOW_REGEX = None
@@ -315,9 +372,10 @@ def _get_options(ret=None):
         "org": "salt",
         "bucket": "salt",
         "event_point_fmt": DEFAULT_EVENT_POINT,
-        "event_point_fmt_tag": {},
+        "event_point_fmt_tag": copy.deepcopy(INBUILT_EVENT_POINTS),
         "events_allowlist": [],
-        "events_blocklist": [],
+        # By default, do not include events that are only tagged with a jid (purpose?)
+        "events_blocklist": [r"\d{20}"],
         "function_point_fmt": DEFAULT_FUNCTION_POINT,
         "function_point_fmt_fun": {},
         "function_point_fmt_state": DEFAULT_STATE_POINT,
@@ -468,7 +526,7 @@ def event_return(events):
             filtered = [
                 evt
                 for evt in events
-                if not __context__[event_allow_ckey].fullmatch(evt["tag"])
+                if not __context__[event_block_ckey].fullmatch(evt["tag"])
             ]
 
         if not filtered:
@@ -488,10 +546,9 @@ def event_return(events):
             for event in filtered:
                 prj = Projector(mappings, event)
                 fmt = __context__[event_map_ckey][event["tag"]]
-                timestamp = event.get("_stamp")
-                if timestamp is not None:
-                    timestamp = datetime.fromisoformat(timestamp)
-                else:
+                try:
+                    timestamp = datetime.fromisoformat(event["data"].pop("_stamp"))
+                except KeyError:
                     timestamp = datetime.utcnow()
                 record = {
                     "measurement": fmt.get(
@@ -583,6 +640,10 @@ def _project(projector, structure):
     """
     ret = {}
     for key, val in structure.items():
+        if "{" not in val:
+            # allow for static values
+            ret[key] = val
+            continue
         try:
             try:
                 # raw values if not a format string other than ~ "{value}"
