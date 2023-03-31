@@ -802,7 +802,7 @@ class StateSum:
 def _salt_version(_):
     try:
         version = __grains__["saltversion"]
-    except (NameError, IndexError):
+    except (NameError, KeyError):
         import salt.version
 
         version = salt.version.__version__
