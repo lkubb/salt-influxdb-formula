@@ -252,6 +252,7 @@ DEFAULT_EVENT_POINT = immutabletypes.freeze(
         },
         "tags": {
             "tag": "{tag}",
+            "event_type": "unknown",
         },
     }
 )
