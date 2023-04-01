@@ -206,7 +206,6 @@ the default location:
 import copy
 import logging
 import re
-from collections.abc import Mapping
 from datetime import datetime
 
 import influxdb2util
@@ -462,21 +461,15 @@ def returner(ret):
     # in case no more specific format was defined, render default one
     fmt = fmt or options["function_point_fmt"]
 
-    prj = Projector(mappings, ret)
+    prj = influxdb2util.Projector(mappings, ret)
     record = {
         "measurement": fmt.get("measurement", DEFAULT_FUNCTION_POINT["measurement"]),
         # tag values must be strings
         "tags": {
             k: str(v)
-            for k, v in _project(
-                prj,
-                fmt.get("tags", DEFAULT_FUNCTION_POINT["tags"]),
-            ).items()
+            for k, v in prj(fmt.get("tags", DEFAULT_FUNCTION_POINT["tags"])).items()
         },
-        "fields": _project(
-            prj,
-            fmt.get("fields", DEFAULT_FUNCTION_POINT["fields"]),
-        ),
+        "fields": prj(fmt.get("fields", DEFAULT_FUNCTION_POINT["fields"])),
         "time": datetime.utcnow(),
     }
 
@@ -507,9 +500,7 @@ def event_return(events):
         # process is long-lived @TODO check that that's the case
         if event_allow_ckey not in __context__:
             __context__[event_allow_ckey] = re.compile(
-                "|".join(
-                    f"({ptrn})" for ptrn in (options["events_allowlist"] or [".*"])
-                )
+                _join_regex(options["events_allowlist"] or [".*"])
             )
 
         filtered = [
@@ -519,7 +510,7 @@ def event_return(events):
         if options["events_blocklist"]:
             if event_block_ckey not in __context__:
                 __context__[event_block_ckey] = re.compile(
-                    "|".join(f"({ptrn})" for ptrn in options["events_blocklist"])
+                    _join_regex(options["events_blocklist"])
                 )
             filtered = [
                 evt
@@ -542,7 +533,7 @@ def event_return(events):
 
         with client.write_api(error_callback=error_callback) as _write_client:
             for event in filtered:
-                prj = Projector(mappings, event)
+                prj = influxdb2util.Projector(mappings, event)
                 fmt = __context__[event_map_ckey][event["tag"]]
                 try:
                     timestamp = datetime.fromisoformat(event["data"].pop("_stamp"))
@@ -555,15 +546,11 @@ def event_return(events):
                     # tag values must be strings
                     "tags": {
                         k: str(v)
-                        for k, v in _project(
-                            prj,
-                            fmt.get("tags", DEFAULT_EVENT_POINT["tags"]),
+                        for k, v in prj(
+                            fmt.get("tags", DEFAULT_EVENT_POINT["tags"])
                         ).items()
                     },
-                    "fields": _project(
-                        prj,
-                        fmt.get("fields", DEFAULT_EVENT_POINT["fields"]),
-                    ),
+                    "fields": prj(fmt.get("fields", DEFAULT_EVENT_POINT["fields"])),
                     "time": timestamp,
                 }
                 _write_client.write(options["bucket"], record=record)
@@ -607,98 +594,6 @@ def _client(options):
         __context__[ckey][client_kwargs] = conn(*client_kwargs)
 
     return next(__context__[ckey][client_kwargs])
-
-
-def _re_match(patterns, data):
-    """
-    Given a list of patterns, check if data matches any.
-    Used for allowlist/blocklist support for functions and events
-    """
-    matches = []
-
-    for ptrn in patterns:
-        try:
-            match = bool(re.match(ptrn, data))
-        except Exception as err:
-            log.error(f"Invalid regular expression: {err}")
-            match = False
-        matches.append(match)
-
-    if not matches:
-        return False
-    return any(matches)
-
-
-def _project(projector, structure):
-    """
-    Render a dict template with a Projector object.
-    It should be possible to get to the raw values, hence
-    try if a key is just ``{val}`` before running format
-    on the possible format string.
-    """
-    ret = {}
-    for key, val in structure.items():
-        if "{" not in val:
-            # allow for static values
-            ret[key] = val
-            continue
-        try:
-            try:
-                # raw values if not a format string other than ~ "{value}"
-                ret[key] = projector[val[1:-1]]
-                continue
-            except KeyError:
-                pass
-            # custom mappings and top-level keys only
-            ret[key] = val.format(**projector)
-            continue
-        except Exception as err:  # pylint: disable=broad-except
-            log.warning(
-                f"Failed rendering point template for {key}: '{val}'. "
-                f"{err.__class__.__name__}: {err}"
-            )
-        ret[key] = None
-
-    return ret
-
-
-class Projector(Mapping):
-    """
-    Given a mapping of template variables and a dictionary of data,
-    render a dict template. Used for ``tags`` and ``fields`` templating.
-    """
-
-    def __init__(self, mappings, data):
-        self.mappings = mappings
-        self.data = data
-
-    def __getitem__(self, key):
-        if key in self.mappings:
-            return self._ensure_type(self.mappings[key](self.data))
-
-        trav = salt.utils.data.traverse_dict_and_list(self.data, key)
-        if trav is not None:
-            return self._ensure_type(trav)
-        raise KeyError(key)
-
-    def __iter__(self):
-        for item in list(self.mappings) + list(self.data):
-            yield item
-
-    def __len__(self):
-        return len(self.mappings)
-
-    def _ensure_type(self, val):
-        """
-        Field values should be integers, floats, strings or booleans.
-        If they are not, dump them to a json string.
-        This might have issues with byte returns for example, but is
-        the way most of the returners do it atm.
-        https://github.com/saltstack/salt/issues/59012
-        """
-        if isinstance(val, (int, float, str, bool)):
-            return val
-        return json.dumps(val)
 
 
 class StateSum:
@@ -807,3 +702,23 @@ def _salt_version(_):
 
         version = salt.version.__version__
     return version.split("+", maxsplit=1)[0]
+
+
+def _re_match(patterns, data):
+    """
+    Given a list of patterns, check if data matches any.
+    Used for allowlist/blocklist support for functions.
+    Events are processed separately in a single compiled long-lived pattern.
+
+    Note that if a single pattern is invalid, this always
+    returns False.
+    """
+    try:
+        return bool(re.fullmatch(_join_regex(patterns), data))
+    except Exception as err:
+        log.error(f"Invalid regular expression: {err}")
+    return False
+
+
+def _join_regex(patterns):
+    return "|".join(f"({ptrn})" for ptrn in patterns)

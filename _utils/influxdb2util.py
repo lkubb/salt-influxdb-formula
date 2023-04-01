@@ -1,6 +1,12 @@
+import json
+import logging
 import re
 from collections.abc import Mapping
+
+import salt.utils.data
 from salt.exceptions import CommandExecutionError, SaltInvocationError
+
+log = logging.getLogger(__name__)
 
 
 class Task:
@@ -104,7 +110,23 @@ def timestring_map(val):
 
 
 class RegexDict(Mapping):
+    """
+    A dictionary whose keys are represented by regular expressions.
+    Key access matches the first of possibly multiple regular expressions
+    and returns the associated dictionary.
+
+    This is used by the event returner to match event tags to custom
+    data output.
+    """
+
     def __init__(self, mappings, compile_ptrn=True):
+        """
+        mappings
+            Ordered (!) mapping of regular expressions to return data.
+
+        compile_ptrn
+            Compile the pattern for multi-use. Defaults to True.
+        """
         self._patterns = list(mappings)
         self._data = [mappings[ptrn] for ptrn in self._patterns]
         self._regex = "|".join(f"({ptrn})" for ptrn in self._patterns)
@@ -127,3 +149,103 @@ class RegexDict(Mapping):
 
     def __len__(self):
         return len(self._patterns)
+
+
+class Projector(Mapping):
+    """
+    Given a mapping of template variables to processing functions
+    and a dictionary of data, render a dict template.
+    Used for ``tags`` and ``fields`` templating.
+
+    If raw values cannot be represented by InfluxDB, they will
+    be encoded as JSON strings.
+    """
+
+    def __init__(self, mappings, data):
+        """
+        mappings
+            Dict of template keys to functions: fn(data) -> Any
+            that should be evaluated (lazily).
+
+        data
+            Dictionary of values that should be processed according
+            to a template. This will be passed to the requested functions
+            in ``mappings`` and its raw values will be available as well.
+        """
+        self.mappings = mappings
+        self.data = data
+
+    def __getitem__(self, key):
+        """
+        If a key refers to a function, return its output,
+        """
+        if key in self.mappings:
+            return self._ensure_type(self.mappings[key](self.data))
+
+        trav = salt.utils.data.traverse_dict_and_list(self.data, key)
+        if trav is not None:
+            return self._ensure_type(trav)
+        raise KeyError(key)
+
+    def _ensure_type(self, val):
+        """
+        Field values should be integers, floats, strings or booleans.
+        If they are not, dump them to a json string.
+        This might have issues with byte returns for example, but is
+        the way most of the returners do it atm.
+        https://github.com/saltstack/salt/issues/59012
+        """
+        if isinstance(val, (int, float, str, bool)):
+            return val
+        return json.dumps(val)
+
+    def __call__(self, structure):
+        """
+        Render a dict template.
+
+        Template variables can be
+
+          * ``mapping`` keys that run associated functions on the data
+          * ``data`` top-level keys
+          * ``data`` deeply nested keys (``{some:deeply:nested:value}``)
+            when requesting the raw values
+
+        If the raw value is desired – not its json/string representation – ensure
+        the "template" only consists of the access to the single key.
+
+        structure
+            Dictionary of keys to templated values to be rendered.
+        """
+        ret = {}
+        for key, val in structure.items():
+            if "{" not in val:
+                # allow for static values
+                ret[key] = val
+                continue
+            try:
+                try:
+                    # It should be possible to get to the raw values, hence
+                    # try if a key is just ``{<key>}`` before running format
+                    # on the possible format string, which casts everything to a string.
+                    ret[key] = self[val[1:-1]]
+                    continue
+                except KeyError:
+                    pass
+                # custom mappings and top-level keys of data only
+                ret[key] = val.format(**self)
+                continue
+            except Exception as err:  # pylint: disable=broad-except
+                log.warning(
+                    f"Failed rendering point template for {key}: '{val}'. "
+                    f"{type(err).__name__}: {err}"
+                )
+            ret[key] = None
+
+        return ret
+
+    def __iter__(self):
+        for item in list(self.mappings) + list(self.data):
+            yield item
+
+    def __len__(self):
+        return len(self.mappings) + len(self.data)
