@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import string
 from collections.abc import Mapping
 
 import salt.utils.data
@@ -161,7 +162,7 @@ class Projector(Mapping):
     be encoded as JSON strings.
     """
 
-    def __init__(self, mappings, data):
+    def __init__(self, mappings, data, formatter=None):
         """
         mappings
             Dict of template keys to functions: fn(data) -> Any
@@ -174,6 +175,9 @@ class Projector(Mapping):
         """
         self.mappings = mappings
         self.data = data
+        if formatter is None:
+            formatter = JsonFormatter()
+        self.formatter = formatter
 
     def __getitem__(self, key):
         """
@@ -184,7 +188,7 @@ class Projector(Mapping):
 
         trav = salt.utils.data.traverse_dict_and_list(self.data, key)
         if trav is not None:
-            return self._ensure_type(trav)
+            return trav
         raise KeyError(key)
 
     def _ensure_type(self, val):
@@ -227,12 +231,12 @@ class Projector(Mapping):
                     # It should be possible to get to the raw values, hence
                     # try if a key is just ``{<key>}`` before running format
                     # on the possible format string, which casts everything to a string.
-                    ret[key] = self[val[1:-1]]
+                    ret[key] = self._ensure_type(self[val[1:-1]])
                     continue
                 except KeyError:
                     pass
                 # custom mappings and top-level keys of data only
-                ret[key] = val.format(**self)
+                ret[key] = self.formatter.format(val, **self)
                 continue
             except Exception as err:  # pylint: disable=broad-except
                 log.warning(
@@ -249,3 +253,10 @@ class Projector(Mapping):
 
     def __len__(self):
         return len(self.mappings) + len(self.data)
+
+
+class JsonFormatter(string.Formatter):
+    def format_field(self, value, format_spec):
+        if isinstance(value, (int, float, str, bool)):
+            return super().format_field(value, format_spec)
+        return json.dumps(value)

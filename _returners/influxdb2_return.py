@@ -122,10 +122,15 @@ event tag.
           salt_version: '{salt_version}'
           state_name: '{state_name}'
 
-The templates values can be a simple ``{var}``, for which the raw value of the
-return dictionary is returned if it is compatible with InfluxDB for the scope, otherwise
-it is dumped as a JSON string. For this simple case, you can even traverse the
-return dict like ``{return:value}``. Note the quotes around the YAML values!
+The templates behave as Python format strings.
+In the special case where the template is just a single variable access (``{var}``),
+the raw value of the return dictionary is returned (if it is compatible with
+InfluxDB for the scope), otherwise it is dumped as a JSON string.
+For this simple case, you can also traverse the return dict like ``{return:value}``.
+Using ``{return[value]}`` always renders as a string, since it relies on
+Python string formatting behavior.
+
+Note the quotes around the YAML values!
 
 The template values can also be Python format strings, in which case you cannot
 traverse dictionaries and only have access to the top keys.
