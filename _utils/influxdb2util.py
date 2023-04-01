@@ -236,7 +236,8 @@ class Projector(Mapping):
                 except KeyError:
                     pass
                 # custom mappings and top-level keys of data only
-                ret[key] = self.formatter.format(val, **self)
+                # do not use .format since **kwargs evaluates all mappings
+                ret[key] = self.formatter.vformat(val, args=(), kwargs=self)
                 continue
             except Exception as err:  # pylint: disable=broad-except
                 log.warning(
