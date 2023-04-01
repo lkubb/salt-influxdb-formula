@@ -366,6 +366,8 @@ def _procs_cnt(daemon, proc_name=None):
 
     # not sure about relenv @TODO
     for proc in psutil.process_iter(["name"]):
-        if proc.info["name"] in ((proc_name,) or (f"salt-{daemon}", f"salt_{daemon}")):
+        if proc.info["name"] in (
+            (proc_name,) if proc_name else (f"salt-{daemon}", f"salt_{daemon}")
+        ):
             count += 1
     return count
