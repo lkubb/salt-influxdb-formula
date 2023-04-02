@@ -66,6 +66,10 @@ daemon_procs_cnt
     The count of running daemon processes for the master/minion daemon,
     depending on context.
 
+daemon_procs_mem
+    The amount of memory consumed by all running daemon processes for the
+    master/minion daemon, depending on context.
+
 opts
     The __opts__ dict.
 
@@ -95,8 +99,14 @@ keys_pending
 salt_api_procs_cnt
     The count of running salt-api processes.
 
+salt_api_procs_mem
+    The amount of memory consumed by all running salt-api processes.
+
 salt_syndic_procs_cnt
     The count of running salt-syndic processes.
+
+salt_syndic_procs_mem
+    The amount of memory consumed by all running salt-syndic processes.
 
 mom
     Whether this master is a master of masters.
@@ -118,9 +128,10 @@ Master
       keys_pending: '{keys_pending}'
       last_startup: '{last_startup}'
       procs_cnt: '{daemon_procs_cnt}'
+      procs_mem: '{daemon_procs_mem}'
     tags:
-      salt_version: '{salt_version}'
       master: '{opts[id]}'
+      salt_version: '{salt_version}'
 
 Minion
 ^^^^^^
@@ -130,9 +141,10 @@ Minion
     fields:
       last_startup: '{last_startup}'
       procs_cnt: '{daemon_procs_cnt}'
+      procs_mem: '{daemon_procs_mem}'
     tags:
-      salt_version: '{salt_version}'
       minion: '{opts[id]}'
+      salt_version: '{salt_version}'
 """
 
 import logging
@@ -178,10 +190,11 @@ DEFAULT_MASTER_POINT = immutabletypes.freeze(
             "keys_pending": "{keys_pending}",
             "last_startup": "{salt_startup_time}",
             "procs_cnt": "{daemon_procs_cnt}",
+            "procs_mem": "{daemon_procs_mem}",
         },
         "tags": {
-            "salt_version": "{salt_version}",
             "master": "{opts[id]}",
+            "salt_version": "{salt_version}",
         },
     }
 )
@@ -190,12 +203,13 @@ DEFAULT_MINION_POINT = immutabletypes.freeze(
     {
         "measurement": "minion",
         "fields": {
-            "procs_cnt": "{daemon_procs_cnt}",
             "last_startup": "{salt_startup_time}",
+            "procs_cnt": "{daemon_procs_cnt}",
+            "procs_mem": "{daemon_procs_mem}",
         },
         "tags": {
-            "salt_version": "{salt_version}",
             "minion": "{opts[id]}",
+            "salt_version": "{salt_version}",
         },
     }
 )
@@ -306,8 +320,11 @@ class InfluxDB2Exporter:
             # "grains": lambda _: next(iter(__runners__["salt.execute"](__opts__["id"].rsplit("_", maxsplit=1)[0], "grains.items"))),
             "pillar": lambda _: __runners__["pillar.show_pillar"](__opts__["id"]),
             "daemon_procs_cnt": lambda _: _procs_cnt("master"),
+            "daemon_procs_mem": lambda _: _procs_mem("master"),
             "salt_api_procs_cnt": lambda _: _procs_cnt("api"),
+            "salt_api_procs_mem": lambda _: _procs_mem("api"),
             "salt_syndic_procs_cnt": lambda _: _procs_cnt("syndic"),
+            "salt_syndic_procs_mem": lambda _: _procs_mem("syndic"),
             # This seems to be updated on restart
             "salt_startup_time": lambda _: __runners__["salt.cmd"](
                 "file.stats", __opts__["cachedir"]
@@ -325,6 +342,7 @@ class InfluxDB2Exporter:
                 "ctime"
             ],
             "daemon_procs_cnt": lambda _: _procs_cnt("minion"),
+            "daemon_procs_mem": lambda _: _procs_mem("minion"),
         }
 
 
@@ -353,29 +371,51 @@ def _is_tiamat(_=None):
     return _is_onedir() and hasattr(sys, "_MEIPASS")
 
 
-def _procs_cnt(daemon, proc_name=None):
+def _find_procs(daemon, measurements=None, proc_name=None):
     """
-    Count daemon processes for minion/master (...?)
+    Count daemon processes for minion/master/...
     This only works on Linux afaict
     """
-    count = 0
+    measurements = measurements or []
+    ret = []
     if _is_tiamat():
         # Usually as /opt/saltstack/salt/run/run (minion|master) [...]
         # name is /opt/saltstack
         # exe is /opt/saltstack/salt/run/run
         # we need the cmdline to differentiate minion from master
-        for proc in psutil.process_iter(["cmdline"]):
+        for proc in psutil.process_iter(["cmdline"] + measurements):
             try:
                 if proc.info["cmdline"][:2] == [sys.executable, daemon]:
-                    count += 1
+                    ret.append(proc)
             except IndexError:
                 continue
-        return count
+        return ret
 
     # not sure about relenv @TODO
-    for proc in psutil.process_iter(["name"]):
+    for proc in psutil.process_iter(["name"] + measurements):
         if proc.info["name"] in (
             (proc_name,) if proc_name else (f"salt-{daemon}", f"salt_{daemon}")
         ):
-            count += 1
+            ret.append(proc)
+    return ret
+
+
+def _procs_cnt(daemon, proc_name=None):
+    """
+    Count daemon processes for minion/master/...
+    This only works on Linux afaict
+    """
+    return len(_find_procs(daemon, proc_name=proc_name))
+
+
+def _procs_mem(daemon, proc_name=None):
+    """
+    Count daemon process memory consumption for minion/master/...
+    This only works on Linux afaict
+    """
+    count = 0
+    for proc in _find_procs(
+        daemon, measurements=["memory_full_info"], proc_name=proc_name
+    ):
+        count += proc.info["memory_full_info"].uss
     return count
