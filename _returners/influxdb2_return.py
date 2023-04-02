@@ -298,7 +298,9 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "event_type": "job",
                 "jid": "{data:jid}",
                 "fun": "{data:fun}",
-            }
+                "tgt": "{data:tgt}",
+                "user": "{data:user}",
+            },
         },
         r"salt/job/\d+/ret/[^/\\]+": {
             "tags": {
@@ -307,7 +309,8 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "jid": "{data:jid}",
                 "fun": "{data:fun}",
                 "success": "{data:success}",
-            }
+                "minion": "{data:id}",
+            },
         },
         r"salt/run/\d+/new": {
             "tags": {
@@ -316,7 +319,7 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "jid": "{data:jid}",
                 "fun": "{data:fun}",
                 "user": "{data:user}",
-            }
+            },
         },
         r"salt/run/\d+/ret": {
             "tags": {
@@ -326,13 +329,29 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "fun": "{data:fun}",
                 "user": "{data:user}",
                 "success": "{data:success}",
-            }
+            },
+        },
+        r"salt/minion/[^/\\]+/start": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "minion_start",
+                "minion": "{data:id}",
+            },
         },
         r"minion/refresh/[^/\\]+": {
             "tags": {
                 "tag": "{tag}",
                 "event_type": "minion_data_refresh",
-            }
+                "minion": "{data:Minion data cache refresh}",
+            },
+        },
+        r"\w+\.\w+": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "failed_state",
+                "state_id": "{data:__id__}",
+                "sls": "{data:__sls__}",
+            },
         },
     }
 )
