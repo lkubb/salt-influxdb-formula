@@ -263,7 +263,7 @@ class InfluxDB2Exporter:
         prj = influxdb2util.Projector(self._get_mappings(), data)
 
         while self.running:
-            if "master_uri" not in __opts__:
+            if not _is_master() and "master_uri" not in __opts__:
                 return
             record = {
                 "measurement": self.fmt.get(
