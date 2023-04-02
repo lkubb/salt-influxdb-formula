@@ -98,6 +98,12 @@ salt_api_procs_cnt
 salt_syndic_procs_cnt
     The count of running salt-syndic processes.
 
+mom
+    Whether this master is a master of masters.
+
+syndic_master
+    Whether this master is part of a syndic.
+
 Default output template
 -----------------------
 Master
@@ -287,6 +293,8 @@ class InfluxDB2Exporter:
             "keys_denied": lambda _: _num_keys("denied"),
             "keys_rejected": lambda _: _num_keys("rejected"),
             "keys_pending": lambda _: _num_keys("pre"),
+            "mom": lambda x: bool(x.get("order_masters")),
+            "syndic": lambda x: bool(x.get("syndi_master")),
             # grains of the master node require a running local minion
             # the master ID is <minion_id>_master usually
             # Access to execution modules might be possible with __salt__ using
