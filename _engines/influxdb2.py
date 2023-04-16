@@ -371,6 +371,10 @@ def _is_tiamat(_=None):
     return _is_onedir() and hasattr(sys, "_MEIPASS")
 
 
+def _is_relenv(_=None):
+    return hasattr(sys, "RELENV")
+
+
 def _find_procs(daemon, measurements=None, proc_name=None):
     """
     Count daemon processes for minion/master/...
