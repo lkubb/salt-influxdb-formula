@@ -17,7 +17,7 @@ InfluxDB {{ reponame }} repository is available:
     - enabled: 1
 {%-     endif %}
     - require_in:
-      - influxdb-package-install-pkg-installed
+      - InfluxDB is installed
 
 {%-   else %}
 
@@ -29,6 +29,6 @@ InfluxDB {{ reponame }} repository is disabled:
 {%-       endif %}
 {%-     endfor %}
     - require_in:
-      - influxdb-package-install-pkg-installed
+      - InfluxDB is installed
 {%-   endif %}
 {%- endfor %}

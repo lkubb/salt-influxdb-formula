@@ -72,11 +72,6 @@ and then starts the associated influxdb service.
 Installs the influxdb package only.
 
 
-``influxdb.package.install``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
-
 ``influxdb.package.repo``
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 This state will install the configured influxdb repository.
