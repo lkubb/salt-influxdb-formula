@@ -180,6 +180,12 @@ __virtualname__ = "influxdb2_stats"
 log = logging.getLogger(__name__)
 
 
+def __virtual__():
+    if HAS_INFLUXDB:
+        return True
+    return False, "This engine requires the influxdb-client library"
+
+
 DEFAULT_MASTER_POINT = immutabletypes.freeze(
     {
         "measurement": "master",
