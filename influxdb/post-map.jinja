@@ -8,7 +8,7 @@
 {%- endfor -%}
 
 {%- set scheme = "https" if "tls-cert" in mapdata.config else "http" %}
-{%- set host = mapdata.vault.influx_host or ((grains.fqdns or grains.ipv4) | first) %}
+{%- set host = mapdata.vault.influx_host or grains.get("fqdn") or ((grains.get("fqdns") or grains.ipv4) | first) %}
 {%- set port = mapdata.vault.influx_port or mapdata.config["http-bind-address"].split(":") | last %}
 
 {%- do mapdata.update({"_scheme": scheme, "_host": host, "_port": port, "_url": scheme ~ "://" ~ host ~ ":" ~ port}) %}
