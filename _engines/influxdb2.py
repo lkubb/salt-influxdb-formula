@@ -401,6 +401,17 @@ def _find_procs(daemon, measurements=None, proc_name=None):
                 continue
         return ret
 
+    if _is_relenv():
+        for proc in psutil.process_iter(["cmdline"] + measurements):
+            try:
+                if proc.info["cmdline"][0] == sys.executable and proc.info["cmdline"][
+                    1
+                ].endswith(daemon):
+                    ret.append(proc)
+            except IndexError:
+                continue
+        return ret
+
     # not sure about relenv @TODO
     for proc in psutil.process_iter(["name"] + measurements):
         if proc.info["name"] in (
