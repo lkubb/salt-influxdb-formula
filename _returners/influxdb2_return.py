@@ -283,8 +283,22 @@ DEFAULT_STATE_POINT = immutabletypes.freeze(
 
 INBUILT_EVENT_POINTS = immutabletypes.freeze(
     {
+        r"\w+\.\w+": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "failed_state",
+                "state_id": "{data:__id__}",
+                "sls": "{data:__sls__}",
+            },
+        },
+        "_salt_error": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "daemon_exception",
+                "minion": "{data:id}",
+            },
+        },
         "salt/auth": {
-            "measurement": "events",
             "tags": {
                 "tag": "{tag}",
                 "act": "{data:act}",
@@ -312,6 +326,46 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "minion": "{data:id}",
             },
         },
+        "salt/key": {
+            "tags": {
+                "tag": "{tag}",
+                "act": "{data:act}",
+                "event_type": "key",
+                "minion": "{data:id}",
+                "success": "{data:result}",
+            },
+        },
+        "key": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "key",
+            },
+        },
+        r"salt/minion/[^/\\]+/start": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "minion_start",
+                "minion": "{data:id}",
+            },
+        },
+        r"minion/refresh/[^/\\]+": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "minion_data_refresh",
+                "minion": "{data:Minion data cache refresh}",
+            },
+        },
+        r"salt/run/\d+/args": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "orch",
+                "orch_type": "{data:type}",
+                "tgt": "{data:tgt}",
+                "tgt_type": "{data:args:tgt_type}",  # defined when orch_type in [state, function]
+                "name": "{data:name}",
+                "user": "{data:user}",
+            },
+        },
         r"salt/run/\d+/new": {
             "tags": {
                 "tag": "{tag}",
@@ -331,26 +385,37 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "success": "{data:success}",
             },
         },
-        r"salt/minion/[^/\\]+/start": {
+        r"salt/wheel/\d+/new": {
             "tags": {
                 "tag": "{tag}",
-                "event_type": "minion_start",
-                "minion": "{data:id}",
+                "event_type": "wheel",
+                "jid": "{data:jid}",
+                "fun": "{data:fun}",
+                "user": "{data:user}",
             },
         },
-        r"minion/refresh/[^/\\]+": {
+        r"salt/wheel/\d+/ret": {
             "tags": {
                 "tag": "{tag}",
-                "event_type": "minion_data_refresh",
-                "minion": "{data:Minion data cache refresh}",
+                "event_type": "wheel",
+                "jid": "{data:jid}",
+                "fun": "{data:fun}",
+                "user": "{data:user}",
+                "success": "{data:success}",
             },
         },
-        r"\w+\.\w+": {
+        r"vault/cache/\w+/clear": {
             "tags": {
                 "tag": "{tag}",
-                "event_type": "failed_state",
-                "state_id": "{data:__id__}",
-                "sls": "{data:__sls__}",
+                "event_type": "vault_expire",
+            },
+        },
+        r"vault/security/unwrapping/error": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "vault_unwrap",
+                "url": "{data:url}",
+                "expected": "{data:expected}",
             },
         },
     }
