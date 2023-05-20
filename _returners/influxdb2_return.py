@@ -458,7 +458,7 @@ def _get_options(ret=None):
         "org": "salt",
         "bucket": "salt",
         "event_point_fmt": DEFAULT_EVENT_POINT,
-        "event_point_fmt_tag": copy.deepcopy(INBUILT_EVENT_POINTS),
+        "event_point_fmt_tag": {},
         "events_allowlist": [],
         # By default, do not include events that are only tagged with a jid (purpose?)
         "events_blocklist": [r"\d{20}"],
@@ -477,6 +477,9 @@ def _get_options(ret=None):
         __opts__=__opts__,
         defaults=defaults,
     )
+    for tag, conf in INBUILT_EVENT_POINTS.items():
+        if tag not in _options["event_point_fmt_tag"]:
+            _options["event_point_fmt_tag"][tag] = copy.deepcopy(conf)
     return _options
 
 
