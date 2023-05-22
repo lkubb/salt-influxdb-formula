@@ -234,10 +234,7 @@ class Projector(Mapping):
                     ret[key] = self._ensure_type(self[val[1:-1]])
                     continue
                 except KeyError:
-                    if re.fullmatch(r"\{[^\}]+\}", val):
-                        # If this is not a format string, but just a key access,
-                        # raise the KeyError here.
-                        raise
+                    pass
                 # do not use .format since **kwargs evaluates all mappings
                 ret[key] = self.formatter.vformat(val, args=(), kwargs=self)
                 continue
