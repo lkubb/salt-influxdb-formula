@@ -1,4 +1,4 @@
-"""
+r"""
 Return data to an InfluxDB v2 server.
 
 Note that this returner is not intended nor working as a job cache,
@@ -85,7 +85,28 @@ event tag.
       # Tags are keys (regular expressions), values as in the default transformation.
       # If a necessary value is unset, it will be taken from the default one.
       # The order matters - only the first match will be processed.
-      event_point_fmt_tag: {}
+      # You can also map one event to a list of several templates. In this case,
+      # there is a third key called ``match``, which should be a dictionary of
+      # key access strings (like ``data:args:tgt_type``) to a single regular expression each.
+      # The first template for which all conditions are met will be chosen as the actual template.
+      # If a template in this list does not include a ``match`` key, it will be chosen
+      # as the default template if none of the other ones match.
+      event_point_fmt_tag:
+        my/custom/event:
+          tags:
+            minion: '{data:id}'
+            tag: '{tag}'
+            event_type: custom_event
+        my/other/event:
+          - match:
+              'data:id': '(db|app)\d+'
+              'type': 'special'
+            tags:
+              event_type: special_type
+              minion: '{data:id}'
+          - tags:
+              event_type: normal_type
+              minion: '{data:id}'
 
       # Default transformation for returns
       function_point_fmt:
@@ -355,17 +376,28 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "minion": "{data:Minion data cache refresh}",
             },
         },
-        r"salt/run/\d+/args": {
-            "tags": {
-                "tag": "{tag}",
-                "event_type": "orch",
-                "orch_type": "{data:type}",
-                "tgt": "{data:tgt}",
-                "tgt_type": "{data:args:tgt_type}",  # defined when orch_type in [state, function]
-                "name": "{data:name}",
-                "user": "{data:user}",
+        r"salt/run/\d+/args": [
+            {
+                "match": {
+                    "data:type": "(state|function)",
+                },
+                "tags": {
+                    "tag": "{tag}",
+                    "event_type": "orch_{data:type}",
+                    "tgt": "{data:tgt}",
+                    "tgt_type": "{data:args:tgt_type}",
+                    "ssh": "{data:args:ssh}",
+                    "name": "{data:name}",
+                },
             },
-        },
+            {
+                "tags": {
+                    "tag": "{tag}",
+                    "event_type": "orch_{data:type}",
+                    "name": "{data:name}",
+                },
+            },
+        ],
         r"salt/run/\d+/new": {
             "tags": {
                 "tag": "{tag}",
@@ -625,27 +657,53 @@ def event_return(events):
 
         with client.write_api(error_callback=error_callback) as _write_client:
             for event in filtered:
-                prj = influxdb2util.Projector(mappings, event)
-                fmt = __context__[event_map_ckey][event["tag"]]
                 try:
-                    timestamp = datetime.fromisoformat(event["data"].pop("_stamp"))
-                except KeyError:
-                    timestamp = datetime.utcnow()
-                record = {
-                    "measurement": fmt.get(
-                        "measurement", DEFAULT_EVENT_POINT["measurement"]
-                    ),
-                    # tag values must be strings
-                    "tags": {
-                        k: str(v) if v is not None else ""
-                        for k, v in prj(
-                            fmt.get("tags", DEFAULT_EVENT_POINT["tags"])
-                        ).items()
-                    },
-                    "fields": prj(fmt.get("fields", DEFAULT_EVENT_POINT["fields"])),
-                    "time": timestamp,
-                }
-                _write_client.write(options["bucket"], record=record)
+                    prj = influxdb2util.Projector(mappings, event)
+                    fmt = __context__[event_map_ckey][event["tag"]]
+                    try:
+                        timestamp = datetime.fromisoformat(event["data"].pop("_stamp"))
+                    except KeyError:
+                        timestamp = datetime.utcnow()
+                    # Some events carry very different data and can only be differentiated
+                    # using those (looking at you, orchestration). It would be possible to
+                    # just map everything possible and rely on None return values, but
+                    # that a) is dirty and b) causes lots of warning logs.
+                    if isinstance(fmt, list):
+                        default_fmt = {}
+                        for match_fmt in fmt:
+                            if "match" not in match_fmt:
+                                default_fmt = match_fmt
+                                continue
+                            for key, pattern in match_fmt["match"].items():
+                                key_data = salt.utils.data.traverse_dict_and_list(
+                                    event, key, default=KeyError
+                                )
+                                if key_data is KeyError:
+                                    break
+                                if not re.fullmatch(pattern, key_data):
+                                    break
+                            else:
+                                fmt = match_fmt
+                                break
+                        else:
+                            fmt = default_fmt
+                    record = {
+                        "measurement": fmt.get(
+                            "measurement", DEFAULT_EVENT_POINT["measurement"]
+                        ),
+                        # tag values must be strings
+                        "tags": {
+                            k: str(v) if v is not None else ""
+                            for k, v in prj(
+                                fmt.get("tags", DEFAULT_EVENT_POINT["tags"])
+                            ).items()
+                        },
+                        "fields": prj(fmt.get("fields", DEFAULT_EVENT_POINT["fields"])),
+                        "time": timestamp,
+                    }
+                    _write_client.write(options["bucket"], record=record)
+                except Exception as err:
+                    log.exception(err)
     except Exception as err:
         log.exception(err)
 

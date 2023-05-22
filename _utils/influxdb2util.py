@@ -178,6 +178,7 @@ class Projector(Mapping):
         if formatter is None:
             formatter = JsonFormatter()
         self.formatter = formatter
+        self._flattened = None
 
     def __getitem__(self, key):
         """
@@ -212,7 +213,6 @@ class Projector(Mapping):
           * ``mapping`` keys that run associated functions on the data
           * ``data`` top-level keys
           * ``data`` deeply nested keys (``{some:deeply:nested:value}``)
-            when requesting the raw values
 
         If the raw value is desired – not its json/string representation – ensure
         the "template" only consists of the access to the single key.
@@ -236,11 +236,8 @@ class Projector(Mapping):
                 except KeyError:
                     if re.fullmatch(r"\{[^\}]+\}", val):
                         # If this is not a format string, but just a key access,
-                        # raise the KeyError here because the format below otherwise
-                        # does weird stuff in some cases (renders the whole `data` key
-                        # when `data:some:key` is undefined)
+                        # raise the KeyError here.
                         raise
-                # custom mappings and top-level keys of data only
                 # do not use .format since **kwargs evaluates all mappings
                 ret[key] = self.formatter.vformat(val, args=(), kwargs=self)
                 continue
@@ -254,14 +251,40 @@ class Projector(Mapping):
         return ret
 
     def __iter__(self):
-        for item in list(self.mappings) + list(self.data):
+        for item in list(self.mappings) + self._flatten_data():
             yield item
 
     def __len__(self):
-        return len(self.mappings) + len(self.data)
+        return len(self.mappings) + len(self._flatten_data())
+
+    def _flatten_data(self):
+        if self._flattened is None:
+
+            def key_iter(cur, prefix):
+                prefixes = []
+                for key, val in cur.items():
+                    prefixes.append(f"{prefix}{key}")
+                    if isinstance(val, dict):
+                        prefixes.extend(key_iter(f"{key}:", val))
+                return prefixes
+
+            self._flattened = key_iter(self.data, "")
+        return self._flattened
 
 
 class JsonFormatter(string.Formatter):
+    def parse(self, format_string):
+        """
+        Monkeypatch the ``:`` format_spec syntax.
+        Otherwise, formatting does not work with subdict access.
+        Changing to a different subdict key delimiter would be possible,
+        but this is more intuitive and format_spec should not be used here anyways.
+        """
+        for parsed in super().parse(format_string):
+            if parsed[2]:
+                parsed = parsed[0], ":".join((parsed[1], parsed[2])), "", parsed[3]
+            yield parsed
+
     def format_field(self, value, format_spec):
         if isinstance(value, (int, float, str, bool)):
             return super().format_field(value, format_spec)
