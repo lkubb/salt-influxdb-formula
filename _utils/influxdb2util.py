@@ -186,8 +186,8 @@ class Projector(Mapping):
         if key in self.mappings:
             return self._ensure_type(self.mappings[key](self.data))
 
-        trav = salt.utils.data.traverse_dict_and_list(self.data, key)
-        if trav is not None:
+        trav = salt.utils.data.traverse_dict_and_list(self.data, key, default=KeyError)
+        if trav is not KeyError:
             return trav
         raise KeyError(key)
 
@@ -234,7 +234,12 @@ class Projector(Mapping):
                     ret[key] = self._ensure_type(self[val[1:-1]])
                     continue
                 except KeyError:
-                    pass
+                    if re.fullmatch(r"\{[^\}]+\}"):
+                        # If this is not a format string, but just a key access,
+                        # raise the KeyError here because the format below otherwise
+                        # does weird stuff in some cases (renders the whole `data` key
+                        # when `data:some:key` is undefined)
+                        raise
                 # custom mappings and top-level keys of data only
                 # do not use .format since **kwargs evaluates all mappings
                 ret[key] = self.formatter.vformat(val, args=(), kwargs=self)
