@@ -234,7 +234,7 @@ class Projector(Mapping):
                     ret[key] = self._ensure_type(self[val[1:-1]])
                     continue
                 except KeyError:
-                    if re.fullmatch(r"\{[^\}]+\}"):
+                    if re.fullmatch(r"\{[^\}]+\}", val):
                         # If this is not a format string, but just a key access,
                         # raise the KeyError here because the format below otherwise
                         # does weird stuff in some cases (renders the whole `data` key
