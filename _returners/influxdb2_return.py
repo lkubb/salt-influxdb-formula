@@ -637,7 +637,7 @@ def event_return(events):
                     ),
                     # tag values must be strings
                     "tags": {
-                        k: str(v)
+                        k: str(v) if v is not None else ""
                         for k, v in prj(
                             fmt.get("tags", DEFAULT_EVENT_POINT["tags"])
                         ).items()
