@@ -48,6 +48,7 @@ values:
     influx_port: null
     manage_role: manage
     organization: default
+    plugin_version: v0.0.5
     token: null
     token_pillar: null
   vault_roles: []
