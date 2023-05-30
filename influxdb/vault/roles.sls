@@ -7,7 +7,7 @@
 include:
   - {{ sls_vault_connection }}
 
-{%-   for role in influxdb.vault_roles %}
+{%- for role in influxdb.vault_roles %}
 
 Vault InfluxDB v2 role {{ role.name }} is present:
   vault_db.role_present:
@@ -18,4 +18,4 @@ Vault InfluxDB v2 role {{ role.name }} is present:
       - '{{ role.definition | json }}'
     - default_ttl: {{ role.get("default_ttl") or "null" }}
     - max_ttl: {{ role.get("max_ttl") or "null" }}
-{%-   endfor %}
+{%- endfor %}

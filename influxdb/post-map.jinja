@@ -1,3 +1,4 @@
+{#- yaml ft=jinja #}
 {#- Make certificate paths absolute, if specified relative -#}
 
 {%- set config_dir = salt["file.dirname"](mapdata.lookup.config) -%}
