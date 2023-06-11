@@ -455,6 +455,15 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
     }
 )
 
+DEFAULT_EVENTS_BLOCKLIST = immutabletypes.freeze(
+    [
+        # By default, do not include events that are only tagged with a jid (purpose?)
+        r"\d{20}",
+        # Minion data refreshes cause a lot of noise
+        r"minion/refresh/[^/\\]+",
+    ]
+)
+
 STATE_FUNCTIONS = ("state.apply", "state.highstate", "state.sls")
 
 
@@ -494,8 +503,7 @@ def _get_options(ret=None):
         "event_point_fmt": DEFAULT_EVENT_POINT,
         "event_point_fmt_tag": {},
         "events_allowlist": [],
-        # By default, do not include events that are only tagged with a jid (purpose?)
-        "events_blocklist": [r"\d{20}"],
+        "events_blocklist": DEFAULT_EVENTS_BLOCKLIST,
         "function_point_fmt": DEFAULT_FUNCTION_POINT,
         "function_point_fmt_fun": {},
         "function_point_fmt_state": DEFAULT_STATE_POINT,
