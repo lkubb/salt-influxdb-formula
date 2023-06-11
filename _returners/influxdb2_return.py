@@ -464,6 +464,12 @@ DEFAULT_EVENTS_BLOCKLIST = immutabletypes.freeze(
     ]
 )
 
+DEFAULT_FUNCTIONS_BLOCKLIST = immutabletypes.freeze(
+    [
+        "mine.update",
+    ]
+)
+
 STATE_FUNCTIONS = ("state.apply", "state.highstate", "state.sls")
 
 
@@ -508,7 +514,7 @@ def _get_options(ret=None):
         "function_point_fmt_fun": {},
         "function_point_fmt_state": DEFAULT_STATE_POINT,
         "functions_allowlist": [],
-        "functions_blocklist": [],
+        "functions_blocklist": DEFAULT_FUNCTIONS_BLOCKLIST,
     }
 
     _options = salt.returners.get_returner_options(
