@@ -84,6 +84,11 @@ Manages the influxdb service configuration.
 Has a dependency on `influxdb.package`_.
 
 
+``influxdb.cert``
+^^^^^^^^^^^^^^^^^
+
+
+
 ``influxdb.service``
 ^^^^^^^^^^^^^^^^^^^^
 Starts the influxdb service and enables it at boot time.
@@ -97,21 +102,6 @@ Has a dependency on `influxdb.config`_.
 
 ``influxdb.auth.managed``
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
-
-``influxdb.buckets``
-^^^^^^^^^^^^^^^^^^^^
-
-
-
-``influxdb.cert``
-^^^^^^^^^^^^^^^^^
-
-
-
-``influxdb.tasks``
-^^^^^^^^^^^^^^^^^^
 
 
 
@@ -130,6 +120,16 @@ Has a dependency on `influxdb.config`_.
 
 
 
+``influxdb.buckets``
+^^^^^^^^^^^^^^^^^^^^
+
+
+
+``influxdb.tasks``
+^^^^^^^^^^^^^^^^^^
+
+
+
 ``influxdb.clean``
 ^^^^^^^^^^^^^^^^^^
 *Meta-state*.
@@ -144,7 +144,7 @@ uninstalls the package.
 ``influxdb.package.clean``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Removes the influxdb package.
-Has a depency on `influxdb.config.clean`_.
+Has a dependency on `influxdb.config.clean`_.
 
 
 ``influxdb.package.repo.clean``
@@ -159,9 +159,19 @@ Removes the configuration of the influxdb service and has a
 dependency on `influxdb.service.clean`_.
 
 
+``influxdb.cert.clean``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
 ``influxdb.service.clean``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Stops the influxdb service and disables it at boot time.
+
+
+``influxdb.vault.clean``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 
 ``influxdb.buckets.clean``
@@ -169,17 +179,7 @@ Stops the influxdb service and disables it at boot time.
 
 
 
-``influxdb.cert.clean``
-^^^^^^^^^^^^^^^^^^^^^^^
-
-
-
 ``influxdb.tasks.clean``
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-
-
-``influxdb.vault.clean``
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 

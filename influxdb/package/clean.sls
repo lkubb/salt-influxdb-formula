@@ -2,7 +2,7 @@
 
 {#-
     Removes the influxdb package.
-    Has a depency on `influxdb.config.clean`_.
+    Has a dependency on `influxdb.config.clean`_.
 #}
 
 {%- set tplroot = tpldir.split("/")[0] %}
