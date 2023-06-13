@@ -234,12 +234,20 @@ the default location:
 import copy
 import logging
 import re
+import sys
 from datetime import datetime
+from pathlib import Path
 
-import influxdb2util
 import salt.returners
 import salt.utils.immutabletypes as immutabletypes
 import salt.utils.json as json
+
+try:
+    # This import seems to fail if no execution module was
+    # loaded in a failing highstate render (after syncing modules?).
+    import influxdb2util
+except ImportError:
+    influxdb2util = None
 
 try:
     import influxdb_client
@@ -298,6 +306,7 @@ DEFAULT_STATE_POINT = immutabletypes.freeze(
         "tags": {
             "fun": "{fun}",
             "state": "{state_name}",
+            "render_result": "{state_render_result}",
             "minion": "{id}",
             "salt_version": "{salt_version}",
         },
@@ -475,6 +484,24 @@ STATE_FUNCTIONS = ("state.apply", "state.highstate", "state.sls")
 
 def __virtual__():
     if HAS_INFLUXDB:
+        global influxdb2util
+        if influxdb2util is None:
+            # Try to forcibly add the extmod utils dir to the pythonpath.
+            # This is very hacky.
+            extutils = Path(__opts__["cachedir"]) / "extmods" / "utils"
+            msg = "Failed loading influxdb2util. This is an edge case."
+            if not extutils.is_dir:
+                log.error(msg)
+                return False, msg
+            try:
+                sys.path.append(str(extutils))
+                import influxdb2util
+            except ImportError:
+                log.error(msg)
+                return False, msg
+            finally:
+                if str(extutils) in sys.path:
+                    sys.path.remove(str(extutils))
         return __virtualname__
     return (
         False,
@@ -572,9 +599,9 @@ def returner(ret):
             pass
 
     # State returns can render more specific insights.
-    # ret["return"] can be a list in case rendering the highstate failed,
-    # in that case skip treating it as a state run
-    if ret["fun"] in STATE_FUNCTIONS and isinstance(ret["return"], dict):
+    # ret["return"] can be a list in case rendering the highstate failed.
+    # This is handled in the StateSum class.
+    if ret["fun"] in STATE_FUNCTIONS:
         ssum = StateSum(ret)
         mappings["states_total"] = ssum.total
         mappings["states_succeeded"] = ssum.succeeded
@@ -584,6 +611,7 @@ def returner(ret):
         mappings["states_changed"] = ssum.changed
         mappings["states_changed_pct"] = ssum.changed_pct
         mappings["states_duration"] = ssum.duration
+        mappings["state_render_result"] = ssum.render_result
         mappings["state_name"] = (
             lambda x: "highstate"
             if x["fun"] == "state.highstate"
@@ -594,8 +622,6 @@ def returner(ret):
             else ret["fun_args"][0]
         )
         # fmt for state.[apply|highstate|sls]
-        # alternatives: allow per module or matching regex
-        # (former might be incorrect, latter expensive)
         fmt = fmt or options["function_point_fmt_state"]
 
     # in case no more specific format was defined, render default one
@@ -612,6 +638,7 @@ def returner(ret):
         "fields": prj(fmt.get("fields", DEFAULT_FUNCTION_POINT["fields"])),
         "time": datetime.utcnow(),
     }
+    log.trace(f"Writing return: {record}")
 
     write_api = client.write_api(write_options=SYNCHRONOUS)
 
@@ -775,6 +802,7 @@ class StateSum:
         self._total = None
         self._changed = None
         self._duration = None
+        self._render_result = None
 
     def succeeded(self, _):
         """
@@ -842,22 +870,38 @@ class StateSum:
             self._sum()
         return self._duration
 
+    def render_result(self, _):
+        """
+        Return true if rendering the highstate succeeded
+        """
+        if self._render_result is None:
+            self._sum()
+        return self._render_result
+
     def _sum(self):
-        failed = succeeded = total = changed = duration = 0
-        for single in self.data.get("return", {}).values():
-            total += 1
-            if single["result"] is False:
-                failed += 1
-            else:
-                succeeded += 1
-            if single.get("changes"):
-                changed += 1
-            duration += single.get("duration", 0)
+        failed = succeeded = total = changed = 0
+        duration = 0.0
+        render_result = True
+        ret = self.data.get("return", {})
+        if isinstance(ret, dict):
+            for single in ret.values():
+                total += 1
+                if single["result"] is False:
+                    failed += 1
+                else:
+                    succeeded += 1
+                if single.get("changes"):
+                    changed += 1
+                duration += single.get("duration", 0)
+        else:
+            failed = succeeded = total = changed = -1
+            render_result = False
         self._failed = failed
         self._succeeded = succeeded
         self._total = total
         self._changed = changed
         self._duration = round(duration, 2)
+        self._render_result = render_result
 
 
 def _salt_version(_):
