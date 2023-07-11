@@ -127,7 +127,7 @@ event tag.
       # This has the highest priority, before state-specific and default transformations.
       function_point_fmt_fun: {}
 
-      # Transformation for `state.[apply|highstate|sls]` in particular
+      # Transformation for `state.[apply|highstate|sls|test]` in particular
       function_point_fmt_state:
         measurement: returns
         fields:
@@ -182,7 +182,7 @@ All general vars are available.
 state_name
     The name of the state that was run. ``highstate`` for
     highstates, otherwise the first positional argument to
-    state.apply/sls.
+    state.apply/sls/test.
 
 states_succeeded
     Number of succeeded states during this state run.
@@ -479,7 +479,7 @@ DEFAULT_FUNCTIONS_BLOCKLIST = immutabletypes.freeze(
     ]
 )
 
-STATE_FUNCTIONS = ("state.apply", "state.highstate", "state.sls")
+STATE_FUNCTIONS = ("state.apply", "state.highstate", "state.sls", "state.test")
 
 
 def __virtual__():
@@ -616,12 +616,12 @@ def returner(ret):
             lambda x: "highstate"
             if x["fun"] == "state.highstate"
             or (
-                x["fun"] == "state.apply"
+                x["fun"] in ("state.apply", "state.test")
                 and (not ret["fun_args"] or "=" in ret["fun_args"][0])
             )
             else ret["fun_args"][0]
         )
-        # fmt for state.[apply|highstate|sls]
+        # fmt for state.[apply|highstate|sls|test]
         fmt = fmt or options["function_point_fmt_state"]
 
     # in case no more specific format was defined, render default one

@@ -19,7 +19,7 @@ InfluxDB HTTP certificate private key is managed:
     - prereq:
       - InfluxDB HTTP certificate is managed
 {%-   endif %}
-    - makedirs: True
+    - makedirs: true
     - user: {{ influxdb.lookup.user }}
     - group: {{ influxdb.lookup.group }}
     - require:
@@ -44,7 +44,7 @@ InfluxDB HTTP certificate is managed:
     - mode: '0640'
     - user: {{ influxdb.lookup.user }}
     - group: {{ influxdb.lookup.group }}
-    - makedirs: True
+    - makedirs: true
     - append_certs: {{ influxdb.cert.intermediate | json }}
     - days_remaining: {{ influxdb.cert.days_remaining }}
     - days_valid: {{ influxdb.cert.days_valid }}
