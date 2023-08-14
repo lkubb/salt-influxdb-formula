@@ -17,7 +17,7 @@ values:
       stable:
         humanname: InfluxData stable
         name: influxdata_stable
-        baseurl: https://repos.influxdata.com/rhel/$releasever/$basearch/stable
+        baseurl: https://repos.influxdata.com/stable/$basearch/main
         gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
         gpgcheck: 1
 ...
