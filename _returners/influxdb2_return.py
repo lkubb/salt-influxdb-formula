@@ -476,6 +476,7 @@ DEFAULT_EVENTS_BLOCKLIST = immutabletypes.freeze(
 DEFAULT_FUNCTIONS_BLOCKLIST = immutabletypes.freeze(
     [
         "mine.update",
+        "saltutil.find_job",
     ]
 )
 
