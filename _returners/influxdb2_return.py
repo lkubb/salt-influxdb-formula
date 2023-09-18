@@ -453,6 +453,12 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "event_type": "vault_expire",
             },
         },
+        r"vault/lease/\w+/expire": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "vault_expire",
+            },
+        },
         r"vault/security/unwrapping/error": {
             "tags": {
                 "tag": "{tag}",
