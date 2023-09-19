@@ -447,6 +447,12 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "success": "{data:success}",
             },
         },
+        r"vault/auth/local/expire": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "vault_local_expire",
+            },
+        },
         r"vault/cache/\w+/clear": {
             "tags": {
                 "tag": "{tag}",
