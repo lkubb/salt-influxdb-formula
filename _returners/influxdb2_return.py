@@ -330,7 +330,7 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "minion": "{data:id}",
             },
         },
-        r"salt/beacon/\w+/\w+/.*": {
+        r"salt/beacon/[^/\\]+/[^/\\]+/.*": {
             "tags": {
                 "tag": "{tag}",
                 "event_type": "beacon",
@@ -478,7 +478,7 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "event_type": "vault_expire",
             },
         },
-        r"vault/lease/\w+/expire": {
+        r"vault/lease/[^/\\]+/expire": {
             "tags": {
                 "tag": "{tag}",
                 "event_type": "vault_expire",
