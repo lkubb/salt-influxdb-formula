@@ -330,6 +330,13 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "minion": "{data:id}",
             },
         },
+        r"salt/beacon/\w+/\w+/.*": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "beacon",
+                "minion": "{data:id}",
+            },
+        },
         "salt/auth": {
             "tags": {
                 "tag": "{tag}",
@@ -356,6 +363,18 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "fun": "{data:fun}",
                 "success": "{data:success}",
                 "minion": "{data:id}",
+            },
+        },
+        r"salt/job/\d+/sub/[^/\\]+/error/[^/\\]+": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "failed_state",
+                "jid": "{data:jid}",
+                "fun": "{data:fun}",
+                "success": "{data:success}",
+                "minion": "{data:id}",
+                "state_id": "{data:__id__}",
+                "sls": "{data:__sls__}",
             },
         },
         "salt/key": {
