@@ -613,10 +613,10 @@ def returner(ret):
         # typical `nested:value` notation can be used.
         "module": lambda x: x["fun"].split(".")[0],
         "ret_str": lambda x: str(x["return"]),
-        # Just dumping the data as JSON causes issues with bytes:
-        # https://github.com/saltstack/salt/issues/59012
-        # @FIXMEMAYBE
-        "full_ret": lambda x: json.dumps({k: v for k, v in x.items() if k != "return"}),
+        "full_ret": lambda x: json.dumps(
+            {k: v for k, v in x.items() if k != "return"},
+            cls=influxdb2util.BytesEncoder,
+        ),
         "salt_version": _salt_version,
     }
 

@@ -196,13 +196,13 @@ class Projector(Mapping):
         """
         Field values should be integers, floats, strings or booleans.
         If they are not, dump them to a json string.
-        This might have issues with byte returns for example, but is
+        This might have some issues (byte returns are OK though), but is
         the way most of the returners do it atm.
         https://github.com/saltstack/salt/issues/59012
         """
         if isinstance(val, (int, float, str, bool)):
             return val
-        return json.dumps(val)
+        return json.dumps(val, cls=BytesEncoder)
 
     def __call__(self, structure):
         """
@@ -285,4 +285,13 @@ class JsonFormatter(string.Formatter):
     def format_field(self, value, format_spec):
         if isinstance(value, (int, float, str, bool)):
             return super().format_field(value, format_spec)
-        return json.dumps(value)
+        return json.dumps(value, cls=BytesEncoder)
+
+
+class BytesEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, bytes):
+            # Dump as Python string-casted bytes and cut b''. for now.
+            # Alternatively, this could use .hex() or base64.
+            return str(o)[2:-1]
+        return json.JSONEncoder.default(self, o)
