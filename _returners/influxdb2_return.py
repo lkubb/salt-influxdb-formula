@@ -345,6 +345,13 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "minion": "{data:id}",
             },
         },
+        "salt/event_listen/start": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "event_returner_start",
+                "master": "{master}",
+            },
+        },
         r"salt/job/\d+/new": {
             "tags": {
                 "tag": "{tag}",
