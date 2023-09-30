@@ -756,7 +756,7 @@ def event_return(events):
         options = _get_options()
         client = _client(options)
         mappings = {
-            "master": __opts__["id"],
+            "master": lambda x: __opts__["id"],
         }
 
         # This whole function operates under the assumption that the event returner
