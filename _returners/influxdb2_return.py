@@ -466,32 +466,89 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "success": "{data:success}",
             },
         },
-        r"vault/auth/local/expire": {
-            "tags": {
-                "tag": "{tag}",
-                "event_type": "vault_local_expire",
+        r"vault/auth/local/expire": [
+            # These events are sent using event.fire_master, which works out
+            # to a different dict than if they were sent locally (the master
+            # event bus receives an event with the raw load from the minion).
+            {
+                "match": {
+                    "data:cmd": "_minion_event",
+                },
+                "tags": {
+                    "tag": "{tag}",
+                    "event_type": "vault_local_expire",
+                    "minion": "{data:id}",
+                },
             },
-        },
-        r"vault/cache/\w+/clear": {
-            "tags": {
-                "tag": "{tag}",
-                "event_type": "vault_expire",
+            {
+                "tags": {
+                    "tag": "{tag}",
+                    "event_type": "vault_local_expire",
+                    "minion": "{master}",
+                },
             },
-        },
-        r"vault/lease/[^/\\]+/expire": {
-            "tags": {
-                "tag": "{tag}",
-                "event_type": "vault_expire",
+        ],
+        r"vault/cache/\w+/clear": [
+            {
+                "match": {
+                    "data:cmd": "_minion_event",
+                },
+                "tags": {
+                    "tag": "{tag}",
+                    "event_type": "vault_expire",
+                    "minion": "{data:id}",
+                },
             },
-        },
-        r"vault/security/unwrapping/error": {
-            "tags": {
-                "tag": "{tag}",
-                "event_type": "vault_unwrap",
-                "url": "{data:url}",
-                "expected": "{data:expected}",
+            {
+                "tags": {
+                    "tag": "{tag}",
+                    "event_type": "vault_expire",
+                    "minion": "{master}",
+                },
             },
-        },
+        ],
+        r"vault/lease/[^/\\]+/expire": [
+            {
+                "match": {
+                    "data:cmd": "_minion_event",
+                },
+                "tags": {
+                    "tag": "{tag}",
+                    "event_type": "vault_expire",
+                    "minion": "{data:id}",
+                },
+            },
+            {
+                "tags": {
+                    "tag": "{tag}",
+                    "event_type": "vault_expire",
+                    "minion": "{master}",
+                },
+            },
+        ],
+        r"vault/security/unwrapping/error": [
+            {
+                "match": {
+                    "data:cmd": "_minion_event",
+                },
+                "tags": {
+                    "tag": "{tag}",
+                    "event_type": "vault_unwrap",
+                    "url": "{data:data:url}",
+                    "expected": "{data:data:expected}",
+                    "minion": "{id}",
+                },
+            },
+            {
+                "tags": {
+                    "tag": "{tag}",
+                    "event_type": "vault_unwrap",
+                    "url": "{data:url}",
+                    "expected": "{data:expected}",
+                    "minion": "{master}",
+                },
+            },
+        ],
     }
 )
 
