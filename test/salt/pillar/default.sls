@@ -36,6 +36,7 @@ influxdb:
     user_password: null
     user_password_pillar: null
     username: admin
+  manage_firewalld: false
   remove_all_data_for_sure: false
   tasks: []
   tasks_absent: []

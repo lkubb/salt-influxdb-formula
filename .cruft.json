@@ -54,6 +54,7 @@
           "user_password_pillar": null,
           "username": "admin"
         },
+        "manage_firewalld": false,
         "tasks": [],
         "tasks_absent": [],
         "vault": {

@@ -19,7 +19,7 @@ InfluxDB is running:
       - sls: {{ sls_cert_managed }}
 {%- endif %}
 
-{%- if grains["os_family"] == "RedHat" %}
+{%- if influxdb.manage_firewalld and "firewall-cmd" | which %}
 
 InfluxDB service is known:
   firewalld.service:
