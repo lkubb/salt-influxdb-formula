@@ -37,10 +37,18 @@ InfluxDB HTTP certificate is managed:
     - authorityKeyIdentifier: keyid:always
     - basicConstraints: critical, CA:false
     - subjectKeyIdentifier: hash
-    # required for vault
+{%-   if influxdb.cert.san %}
+    - subjectAltName:  {{ influxdb.cert.san | json }}
+{%-   else %}
     - subjectAltName:
-      - dns: {{ influxdb.cert.cn or grains.fqdns | first | d(influxdb | traverse("config:instance-id", grains.id)) }}
-    - CN: {{ influxdb.cert.cn or grains.fqdns | first | d(influxdb | traverse("config:instance-id", grains.id)) }}
+      - dns: {{ influxdb.cert.cn or
+                ([grains.fqdn] + grains.fqdns) | reject("==", "localhost.localdomain") | first
+                | d(influxdb | traverse("config:instance-id", grains.id)) }}
+      - ip: {{ (grains | traverse("ip4_interfaces:eth0", [""]) | first) or (grains.get("ipv4") | reject("==", "127.0.0.1") | first) }}
+{%-   endif %}
+    - CN: {{ influxdb.cert.cn or
+             ([grains.fqdn] + grains.fqdns) | reject("==", "localhost.localdomain") | first
+             | d(influxdb | traverse("config:instance-id", grains.id)) }}
     - mode: '0640'
     - user: {{ influxdb.lookup.user }}
     - group: {{ influxdb.lookup.group }}

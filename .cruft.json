@@ -36,6 +36,7 @@
         "cert": {
           "ca_server": null,
           "cn": null,
+          "san": null,
           "intermediate": [],
           "signing_policy": null,
           "signing_private_key": null,

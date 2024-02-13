@@ -11,6 +11,7 @@ influxdb:
     days_remaining: 7
     days_valid: 30
     intermediate: []
+    san: null
     signing_cert: null
     signing_policy: null
     signing_private_key: null
