@@ -16,6 +16,8 @@ influxdb:
     signing_policy: null
     signing_private_key: null
   config:
+    bolt-path: /var/lib/influxdb/influxd.bolt
+    engine-path: /var/lib/influxdb/engine
     http-bind-address: 127.0.0.1:8086
   init:
     bucket: default
