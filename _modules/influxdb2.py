@@ -31,8 +31,10 @@ specifies miscellaneous arguments that should be passed to
 """
 
 import logging
+import shlex
 from functools import wraps
 
+import salt.utils.path
 from influxdb2util import Task, timestring_map
 from salt.exceptions import CommandExecutionError, SaltException, SaltInvocationError
 
@@ -712,3 +714,50 @@ def query(query, org=None, bind_params=None, columns=None, **kwargs):
     res = _client.query_api().query(query, org=org, params=bind_params)
     # TODO This returns raw datetime objects. Convert?
     return res.to_values(columns)
+
+
+def backup(dest, root_token, influxdb_url=None, influxdb_profile=None):
+    """
+    Use the ``influx`` CLI to create a backup of the current data.
+    This command requires the root token.
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' influxdb2.backup /opt/backup/influxdb2 root_token=sdb://sdbvault/salt/roles/influxdb?root_token
+
+    dest
+        The backup destination (directory).
+
+    root_token
+        The InfluxDB v2 root token.
+
+    influxdb_url
+        Override the default URL set in the Salt config.
+
+    influxdb_profile
+        Override the default profile in the Salt config.
+    """
+    if not salt.utils.path.which("influx"):
+        raise CommandExecutionError("Missing `influx` CLI command")
+    if not dest.endswith("/"):
+        dest += "/"
+    if not __salt__["file.directory_exists"](dest):
+        __salt__["file.makedirs"](dest)
+    client_args = _client_args(
+        profile=influxdb_profile,
+        token=None,
+        url=influxdb_url,
+        org=None,
+        extra=None,
+    )
+    env = {
+        "INFLX_ROOT_TOKEN": __salt__["sdb.get"](root_token),
+        "INFLUX_HOST": client_args["url"],
+    }
+    cmd = shlex.join(["influx", "backup", dest, "-t"]) + ' "$INFLX_ROOT_TOKEN"'
+    ret = __salt__["cmd.run_all"](cmd, env=env, python_shell=True)
+    if ret["retcode"] > 0:
+        raise CommandExecutionError(ret["stderr"])
+    return True
