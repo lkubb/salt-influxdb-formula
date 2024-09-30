@@ -330,6 +330,16 @@ INBUILT_EVENT_POINTS = immutabletypes.freeze(
                 "minion": "{data:id}",
             },
         },
+        "__schedule_return": {
+            "tags": {
+                "tag": "{tag}",
+                "event_type": "job",
+                "jid": "{data:jid}",
+                "fun": "{data:fun}",
+                "minion": "{data:id}",
+                "schedule": "{data:schedule}",
+            }
+        },
         r"salt/beacon/[^/\\]+/[^/\\]+/.*": {
             "tags": {
                 "tag": "{tag}",
